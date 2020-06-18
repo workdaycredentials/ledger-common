@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Education",
+  "type": "object",
+  "properties": {
+    "gradeAverage": {
+      "type": "string"
+    },
+    "startDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "endDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "institutionName": {
+      "type": "string"
+    },
+    "institutionLocation": {
+      "type": "string"
+    },
+    "degreeReceivedDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "degree": {
+      "type": "string"
+    },
+    "fieldOfStudy": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "startDate",
+    "institutionName",
+    "degreeReceivedDate",
+    "degree",
+    "fieldOfStudy"
+  ],
+  "additionalProperties": false
+}

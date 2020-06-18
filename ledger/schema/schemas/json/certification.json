@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Certification",
+  "type": "object",
+  "properties": {
+    "emailAddress": {
+      "type": "string",
+      "format": "email"
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "certificationName": {
+      "type": "string"
+    },
+    "certificationIssuer": {
+      "type": "string"
+    },
+    "expirationDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "issuedDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "certificationNumber": {
+      "type": "string"
+    },
+    "examDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "examScore": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "details": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "certificationName",
+    "certificationIssuer",
+    "issuedDate"
+  ],
+  "additionalProperties": false
+}

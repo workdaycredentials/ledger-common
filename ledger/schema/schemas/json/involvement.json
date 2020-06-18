@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Involvement",
+  "type": "object",
+  "properties": {
+    "involvementName": {
+      "type": "string"
+    },
+    "beginDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "endDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "relationship": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "organization": {
+      "type": "string"
+    },
+    "emailAddress": {
+      "type": "string",
+      "format": "email"
+    },
+    "displayName": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "involvementName",
+    "beginDate",
+    "endDate"
+  ],
+  "additionalProperties": false
+}

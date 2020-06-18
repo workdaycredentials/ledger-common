@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Phone Number",
+  "type": "object",
+  "properties": {
+    "country": {
+      "type": "string"
+    },
+    "countryPhoneCode": {
+      "type": "string"
+    },
+    "phoneNumber": {
+      "type": "string",
+      "pattern": "^(\\+\\d{1,2}\\s)?\\(?\\d{3}\\)?[\\s.-]\\d{3}[\\s.-]\\d{4}$"
+    },
+    "extension": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "country",
+    "phoneNumber"
+  ],
+  "additionalProperties": false
+}

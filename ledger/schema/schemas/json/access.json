@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Access",
+  "type": "object",
+  "properties": {
+    "expirationDate": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tenantName": {
+      "type": "string"
+    },
+    "tenantType": {
+      "type": "string"
+    },
+    "auditInfo": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "expirationDate",
+    "tenantName",
+    "tenantType",
+    "auditInfo"
+  ],
+  "additionalProperties": false
+}

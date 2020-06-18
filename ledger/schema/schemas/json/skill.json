@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Skill",
+  "type": "object",
+  "properties": {
+    "skill": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "skill"
+  ],
+  "additionalProperties": false
+}

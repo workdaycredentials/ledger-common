@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Course",
+  "type": "object",
+  "properties": {
+    "displayName": {
+      "type": "string"
+    },
+    "emailAddress": {
+      "type": "string",
+      "format": "email"
+    },
+    "title": {
+      "type": "string"
+    },
+    "required": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "registrationDate": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "score": {
+      "type": "string"
+    },
+    "grade": {
+      "type": "string"
+    },
+    "gradePoints": {
+      "type": "string",
+      "pattern": "^([0-9]{1,3},([0-9]{3},)*[0-9]{3}|[0-9]+)(.[0-9][0-9])?$"
+    },
+    "startDate": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completionDate": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expirationDate": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "additionalProperties": false
+}
