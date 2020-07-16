@@ -1,11 +1,9 @@
 package schema
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/xeipuuv/gojsonschema"
@@ -37,7 +35,6 @@ func Validate(schema, document string) error {
 // the schema from the loader. Nil if good, error if bad
 func ValidateWithJSONLoader(schemaLoader, documentLoader gojsonschema.JSONLoader) error {
 	// Add custom validator(s) and then ValidateWithJSONLoader
-	addRFC3339Validation()
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
 		logrus.WithError(err).Error("failed to ValidateWithJSONLoader document against s")
@@ -55,39 +52,43 @@ func ValidateWithJSONLoader(schemaLoader, documentLoader gojsonschema.JSONLoader
 	return nil
 }
 
-// Validate credential is a specific form of validation that understands the format of a credential
-// This includes a credential schema that applies to all credentials and a "fields" section which
-// has a schema specific to the 'type' defined in the credentialSchema portion of the document.
-func ValidateCredential(credentialSchema, credentialSubjectSchema, documentJSON string) error {
-	// First ValidateWithJSONLoader against the credential s
-	if err := Validate(credentialSchema, documentJSON); err != nil {
-		logrus.WithError(err).Error("failed to ValidateWithJSONLoader document json against credentialSchema")
-		return err
-	}
-
-	// Next unmarshal the credentialSchema to extract the fields object
+// Validate a credential's data is valid against its schema
+func ValidateCredential(credentialSubjectSchema, documentJSON string) error {
 	var cred credential.VerifiableCredential
 	if err := json.Unmarshal([]byte(documentJSON), &cred); err != nil {
 		logrus.WithError(err).Error("unable to unmarshal document into JSONSchema model")
 		return err
 	}
-	logrus.Debugf("Unmarshalled credential json: %s", documentJSON)
+	logrus.Debugf("unmarshalled credential json: %s", documentJSON)
 
-	// Marshal the credential subject to json to ValidateWithJSONLoader against the provided credential subject s
+	// Remove the "id" property that is common to each credential
+	delete(cred.CredentialSubject, credential.SubjectIDAttribute)
+
+	// Marshal the credential subject to json to ValidateWithJSONLoader against the provided credential subject schema
 	credentialSubjectJSONBytes, err := json.Marshal(cred.CredentialSubject)
 	if err != nil {
 		logrus.WithError(err).Error("could not marshal credential subject to json")
 		return err
 	}
 	credentialSubjectJSON := string(credentialSubjectJSONBytes)
-	logrus.Debugf("Unmarshalled credential subject json: %s", credentialSubjectJSON)
+	logrus.Debugf("unmarshalled credential subject json: %s", credentialSubjectJSON)
 
 	// Validate against the credential subject s
 	return Validate(credentialSubjectSchema, credentialSubjectJSON)
 }
 
 // ValidateJSONSchema takes in a string that is purported to be a JSON schema (schema definition)
-// An error is returned if it is not a valid JSON s, and nil is returned on success
+// An error is returned if it is not a valid JSON schema, and nil is returned on success
+func ValidateJSONSchemaString(maybeSchema string) error {
+	var schemaMap ledger.JSONSchemaMap
+	if err := json.Unmarshal([]byte(maybeSchema), &schemaMap); err != nil {
+		return err
+	}
+	return ValidateJSONSchema(schemaMap)
+}
+
+// ValidateJSONSchema takes in a map that is purported to be a JSON schema (schema definition)
+// An error is returned if it is not a valid JSON schema, and nil is returned on success
 func ValidateJSONSchema(maybeSchema ledger.JSONSchemaMap) error {
 	schemaLoader := gojsonschema.NewSchemaLoader()
 	schemaLoader.Validate = true
@@ -98,8 +99,8 @@ func ValidateJSONSchema(maybeSchema ledger.JSONSchemaMap) error {
 // It is possible that multiple validation methods would be supported for a given version,
 // so we always choose the validation method created last (heavy assumption here that the versions
 // we track are properly ordered).
-func ValidateSchemaRequest(ctx context.Context, document interface{}, version string) error {
-	validator, err := FindValidatorForVersion(ctx, version)
+func ValidateSchemaRequest(document interface{}, version string) error {
+	validator, err := FindValidatorForVersion(version)
 	if err != nil {
 		err := fmt.Errorf("invalid version<%s>", version)
 		logrus.WithError(err).Error("unsupported schema version")
@@ -108,30 +109,10 @@ func ValidateSchemaRequest(ctx context.Context, document interface{}, version st
 
 	switch validator {
 	case V1:
-		return ValidateLedgerSchemaV1(ctx, document)
+		return ValidateLedgerSchemaV1(document)
 	default:
 		return fmt.Errorf("invalid version<%s>", version)
 	}
-}
-
-// Custom validation logic
-type RFC3339FormatChecker struct{}
-
-// Ensure it meets the gojsonschema.FormatChecker interface
-// Try to parse the string as a RFC3339 date-time
-func (f RFC3339FormatChecker) IsFormat(input interface{}) bool {
-
-	asString, ok := input.(string)
-	if !ok {
-		return false
-	}
-	_, err := time.Parse(time.RFC3339, asString)
-	return err == nil
-}
-
-// Add custom rfc3339 validator the library
-func addRFC3339Validation() {
-	gojsonschema.FormatCheckers.Add("date-time-rfc3339", RFC3339FormatChecker{})
 }
 
 // True if string is valid JSON, false otherwise

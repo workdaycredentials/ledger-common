@@ -55,7 +55,7 @@ func TestLedgerMetadata(t *testing.T) {
 }
 
 func TestLedgerDIDDoc(t *testing.T) {
-	jsonMD := `{
+	docJSON := `{
 				"type": "https://credentials.id.workday.com/diddoc",
 				"modelVersion": "1.0",
 				"id": "did:work:6sYe1y3zXhmyrBkgHgAgaq",
@@ -64,7 +64,7 @@ func TestLedgerDIDDoc(t *testing.T) {
 				"authored": "2019-01-01T00:00:00+00:00",
 				"proof": {
 					"created": "2018-01-01T00:00:00+00:0",
-					"verificationMethod": "did:work:6sYe1y3zXhmyrBkgHgAgaq",
+					"verificationMethod": "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1",
 					"nonce": "fd15fe7f1f34498c800e23b9f81d8f1e",
 					"signatureValue": "5AFtmJxXHnhNJMUHeZvJSkSbHn4ieMs1wekodtQRteDCLZoWfbYEiTCHNqcBqcgTTivP9EgJhPjGPGmMQbakVwtu",
 					"type": "WorkEd25519Signature2020"
@@ -73,7 +73,7 @@ func TestLedgerDIDDoc(t *testing.T) {
 					"id": "did:work:6sYe1y3zXhmyrBkgHgAgaq",
 					"publicKey": [{
 						"id": "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1",
-						"type": "WorkEd25519Signature2020",
+						"type": "WorkEd25519VerificationKey2020",
 						"controller": "did:work:6sYe1y3zXhmyrBkgHgAgaq",
 						"publicKeyBase58": "4CcKDtU1JNGi8U4D8Rv9CHzfmF7xzaxEAPFA54eQjRHF"
 					}],
@@ -81,7 +81,7 @@ func TestLedgerDIDDoc(t *testing.T) {
 					"service": null,
 					"proof": {
 						"created": "2018-01-01T00:00:00+00:0",
-						"verificationMethod": "did:work:6sYe1y3zXhmyrBkgHgAgaq",
+						"verificationMethod": "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1",
 						"nonce": "fd15fe7f1f34498c800e23b9f81d8f1e",
 						"signatureValue": "5AFtmJxXHnhNJMUHeZvJSkSbHn4ieMs1wekodtQRteDCLZoWfbYEiTCHNqcBqcgTTivP9EgJhPjGPGmMQbakVwtu",
 						"type": "WorkEd25519Signature2020"
@@ -89,7 +89,7 @@ func TestLedgerDIDDoc(t *testing.T) {
 				}
 			}`
 
-	md := DIDDoc{
+	expectedDoc := DIDDoc{
 		Metadata: &Metadata{
 			Type:         "https://credentials.id.workday.com/diddoc",
 			ModelVersion: "1.0",
@@ -99,7 +99,7 @@ func TestLedgerDIDDoc(t *testing.T) {
 			Authored:     "2019-01-01T00:00:00+00:00",
 			Proof: &proof.Proof{
 				Created:            "2018-01-01T00:00:00+00:0",
-				VerificationMethod: "did:work:6sYe1y3zXhmyrBkgHgAgaq",
+				VerificationMethod: "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1",
 				Nonce:              "fd15fe7f1f34498c800e23b9f81d8f1e",
 				SignatureValue:     "5AFtmJxXHnhNJMUHeZvJSkSbHn4ieMs1wekodtQRteDCLZoWfbYEiTCHNqcBqcgTTivP9EgJhPjGPGmMQbakVwtu",
 				Type:               "WorkEd25519Signature2020",
@@ -111,7 +111,7 @@ func TestLedgerDIDDoc(t *testing.T) {
 				PublicKey: []did.KeyDef{
 					{
 						ID:              "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1",
-						Type:            "WorkEd25519Signature2020",
+						Type:            "WorkEd25519VerificationKey2020",
 						Controller:      "did:work:6sYe1y3zXhmyrBkgHgAgaq",
 						PublicKeyBase58: "4CcKDtU1JNGi8U4D8Rv9CHzfmF7xzaxEAPFA54eQjRHF",
 					},
@@ -121,7 +121,7 @@ func TestLedgerDIDDoc(t *testing.T) {
 			},
 			Proof: &proof.Proof{
 				Created:            "2018-01-01T00:00:00+00:0",
-				VerificationMethod: "did:work:6sYe1y3zXhmyrBkgHgAgaq",
+				VerificationMethod: "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1",
 				Nonce:              "fd15fe7f1f34498c800e23b9f81d8f1e",
 				SignatureValue:     "5AFtmJxXHnhNJMUHeZvJSkSbHn4ieMs1wekodtQRteDCLZoWfbYEiTCHNqcBqcgTTivP9EgJhPjGPGmMQbakVwtu",
 				Type:               "WorkEd25519Signature2020",
@@ -130,14 +130,14 @@ func TestLedgerDIDDoc(t *testing.T) {
 	}
 
 	var didDoc DIDDoc
-	err := json.Unmarshal([]byte(jsonMD), &didDoc)
+	err := json.Unmarshal([]byte(docJSON), &didDoc)
 	assert.NoError(t, err)
 
-	assert.Equal(t, md, didDoc)
+	assert.Equal(t, expectedDoc, didDoc)
 }
 
 func TestLedgerSchema(t *testing.T) {
-	jsonMD := `{
+	schemaJSON := `{
 			"type": "https://credentials.id.workday.com/metadata-type",
 			"modelVersion": "1.0",
 			"id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
@@ -177,7 +177,7 @@ func TestLedgerSchema(t *testing.T) {
 			}
 		}`
 
-	md := Schema{
+	expectedSchema := Schema{
 		Metadata: &Metadata{
 			Type:         "https://credentials.id.workday.com/metadata-type",
 			ModelVersion: "1.0",
@@ -225,11 +225,11 @@ func TestLedgerSchema(t *testing.T) {
 	}
 
 	var schema Schema
-	err := json.Unmarshal([]byte(jsonMD), &schema)
+	err := json.Unmarshal([]byte(schemaJSON), &schema)
 	assert.NoError(t, err)
 
-	assert.Equal(t, md.Metadata, schema.Metadata)
-	assert.Equal(t, md.Schema.ToJSON(), schema.JSONSchema.Schema.ToJSON())
+	assert.Equal(t, expectedSchema.Metadata, schema.Metadata)
+	assert.Equal(t, expectedSchema.Schema.ToJSON(), schema.JSONSchema.Schema.ToJSON())
 }
 
 // tests where the given regular expression accurately validates the id property
@@ -481,8 +481,8 @@ func TestSchemaUtilities(t *testing.T) {
 		}
 	}`
 
-	s := &Schema{}
-	err := json.Unmarshal([]byte(jsonIn), s)
+	var s Schema
+	err := json.Unmarshal([]byte(jsonIn), &s)
 	require.NoError(t, err)
 
 	assert.Equal(t, s.Schema.Description(), "Name Credential Object")
@@ -503,7 +503,7 @@ func TestSchemaUtilities(t *testing.T) {
 
 // Ensures no fields are lost marshalling/unmarshalling of JSON schema using schema
 func TestLedgerMetadataSchema(t *testing.T) {
-	jsonIn := `{
+	schemaJSON := `{
 		"type": "https://credentials.workday.com/docs/specification/v1.0/schema.json",
 		"modelVersion": "1.0",
 		"id": "did:work:6sYe1y3zXhmyrBkgHgAgaq;id=ea691feb8e4537b9bb5d2b5d5bb984;version=1.0",
@@ -580,7 +580,7 @@ func TestLedgerMetadataSchema(t *testing.T) {
 					`
 
 	var schema Schema
-	err := json.Unmarshal([]byte(jsonIn), &schema)
+	err := json.Unmarshal([]byte(schemaJSON), &schema)
 
 	assert.NoError(t, err)
 	assert.Equal(t, util.SchemaTypeReference_v1_0, schema.Type)

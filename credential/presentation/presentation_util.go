@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/workdaycredentials/ledger-common/credential"
 	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
 	"github.com/workdaycredentials/ledger-common/util/canonical"
 )
 
@@ -19,8 +19,8 @@ const (
 )
 
 // GenerateProof returns the given credential as a Presentation that is digitally signed using
-// the provided key material.  This method is intended to be called by mobile clients using
-// Gomobile; therefore, the arguments and response are base64 encoded in accordance with Workday's
+// the provided key material. This method is intended to be called by mobile clients using Gomobile;
+// therefore, the arguments and response are base64 encoded in accordance with Workday's
 // Gomobile style guides.
 func GenerateProof(b64Credential, b64KeyReference, b64SigningKey, b64PresentationID string) (string, error) {
 	b64Enc := base64.StdEncoding
@@ -44,13 +44,17 @@ func GenerateProof(b64Credential, b64KeyReference, b64SigningKey, b64Presentatio
 		return "", err
 	}
 
-	pid, err := b64Enc.DecodeString(b64PresentationID)
+	presentationID, err := b64Enc.DecodeString(b64PresentationID)
 	if err != nil {
 		return "", err
 	}
 
 	signingKey := ed25519.PrivateKey(keyBytes)
-	presentation, err := GeneratePresentationForVersionedCred(cred, string(keyRef), signingKey, string(pid))
+	signer, err := proof.NewEd25519Signer(signingKey, string(keyRef))
+	if err != nil {
+		return "", err
+	}
+	presentation, err := GeneratePresentationForVersionedCred(cred, signer, proof.WorkEdSignatureType, string(presentationID))
 	if err != nil {
 		return "", err
 	}
@@ -60,36 +64,29 @@ func GenerateProof(b64Credential, b64KeyReference, b64SigningKey, b64Presentatio
 
 // GeneratePresentationFromVC generates a Presentation from a Verifiable Credential, and digitally
 // signs it using the key material provided.
-func GeneratePresentationFromVC(cred credential.UnsignedVerifiableCredential, keyReference string, signingKey ed25519.PrivateKey, pid string) (*Presentation, error) {
+func GeneratePresentationFromVC(cred credential.UnsignedVerifiableCredential, signer proof.Signer, signatureType proof.SignatureType, presentationID string) (*Presentation, error) {
 	versionedCred := credential.VersionedCreds{
 		UnsignedVerifiableCredential: cred,
 	}
-	return GeneratePresentationForVersionedCred(versionedCred, keyReference, signingKey, pid)
+	return GeneratePresentationForVersionedCred(versionedCred, signer, signatureType, presentationID)
 }
 
 // GeneratePresentationForVersionedCred generates a Presentation from a Versioned Credential and
 // digitally signs it using the key material provided.
-func GeneratePresentationForVersionedCred(cred credential.VersionedCreds, keyReference string, signingKey ed25519.PrivateKey, pid string) (*Presentation, error) {
-	unsignedPres := UnsignedPresentation{
-		Context:     []string{CredentialsLDContext},
-		ID:          pid,
-		Type:        []string{LDType},
-		Created:     time.Now().UTC().Format(time.RFC3339),
-		Credentials: []credential.VersionedCreds{cred},
+func GeneratePresentationForVersionedCred(cred credential.VersionedCreds, signer proof.Signer, signatureType proof.SignatureType, presentationID string) (*Presentation, error) {
+	pres := &Presentation{
+		UnsignedPresentation: UnsignedPresentation{
+			Context:     []string{CredentialsLDContext},
+			ID:          presentationID,
+			Type:        []string{LDType, util.ProofResponseTypeReference_v1_0},
+			Created:     time.Now().UTC().Format(time.RFC3339),
+			Credentials: []credential.VersionedCreds{cred},
+		},
 	}
-
-	unsignedJSON, err := canonical.Marshal(unsignedPres)
+	suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
 	if err != nil {
 		return nil, err
 	}
-
-	presProof, err := proof.CreateWorkEd25519Proof(unsignedJSON, keyReference, signingKey, uuid.New().String())
-	if err != nil {
-		return nil, err
-	}
-
-	return &Presentation{
-		UnsignedPresentation: unsignedPres,
-		Proof:                []proof.Proof{*presProof},
-	}, nil
+	err = suite.Sign(pres, signer)
+	return pres, err
 }

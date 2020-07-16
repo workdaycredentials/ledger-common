@@ -38,7 +38,7 @@ func (s LDSignatureSuite) Sign(provable Provable, signer Signer) error {
 	if provable.GetProof() != nil {
 		return fmt.Errorf("attempt to overwrite existing proof")
 	}
-	if signer.KeyType() != s.KeyType {
+	if signer.Type() != s.KeyType {
 		return fmt.Errorf("incorrect key type")
 	}
 
@@ -92,13 +92,6 @@ func (s LDSignatureSuite) Verify(provable Provable, verifier Verifier) error {
 	if p.IsEmpty() {
 		return fmt.Errorf("missing proof")
 	}
-	if p.Type != s.SignatureType {
-		return fmt.Errorf("incorrect signature type")
-	}
-	if verifier.KeyType() != s.KeyType {
-		return fmt.Errorf("incorrect key type")
-	}
-
 	signatureB58 := p.SignatureValue
 	signature, err := base58.Decode(signatureB58)
 	if err != nil {
@@ -113,6 +106,7 @@ func (s LDSignatureSuite) Verify(provable Provable, verifier Verifier) error {
 	return nil
 }
 
+// ProofFactory creates proofs given a signer and signature type
 type ProofFactory interface {
 	Create(signer Signer, signatureType SignatureType) *Proof
 }
@@ -154,7 +148,7 @@ type Marshaler interface {
 	Marshal(provable Provable) ([]byte, error)
 }
 
-// EmbeddedProofMarshaler tranforms the Probable into JSON, and leaves an embedded Proof sans the
+// EmbeddedProofMarshaler transforms the Provable into JSON, and leaves an embedded Proof sans the
 // signature value. This will effectively pass the Proof Options (metadata) into the signing
 // algorithm as part of the canonicalized JSON payload.
 type EmbeddedProofMarshaler struct{}
@@ -174,7 +168,17 @@ func (m *WithoutProofMarshaler) Marshal(provable Provable) ([]byte, error) {
 	p := provable.GetProof()
 	provable.SetProof(nil)
 	defer func() { provable.SetProof(p) }()
-	return json.Marshal(provable)
+	b, err := json.Marshal(provable)
+	if err != nil {
+		return nil, err
+	}
+	// make sure the proof is really gone
+	var object map[string]interface{}
+	if err := json.Unmarshal(b, &object); err != nil {
+		return nil, err
+	}
+	delete(object, "proof")
+	return json.Marshal(object)
 }
 
 // Canonicalizer transforms a JSON byte array into its canonical form.

@@ -1,7 +1,9 @@
 package did
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/mr-tron/base58"
 
@@ -72,6 +74,14 @@ func (k *KeyDef) IsEmpty() bool {
 
 func (k *KeyDef) GetDecodedPublicKey() ([]byte, error) {
 	return base58.Decode(k.PublicKeyBase58)
+}
+
+func (k *KeyDef) GetKeyFragment() (string, error) {
+	split := strings.Split(k.ID, "#")
+	if len(split) != 2 {
+		return "", fmt.Errorf("could not extract key reference from key ID: %s", k.ID)
+	}
+	return split[1], nil
 }
 
 type ServiceDef struct {

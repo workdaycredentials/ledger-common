@@ -45,6 +45,11 @@ func (v *VerifiableCredential) IsEmpty() bool {
 	return reflect.DeepEqual(v, &VerifiableCredential{})
 }
 
+func (v *VerifiableCredential) ToJSON() (string, error) {
+	bytes, err := json.Marshal(v)
+	return string(bytes), err
+}
+
 // UnsignedVerifiableCredential is the set of claims, claim proofs, and associated metadata held
 // within a Verifiable Credential, but without the outer digital signature.  The "claimProofs"
 // property is unique to Workday credentials and represents our implementation of attribute-level
@@ -144,7 +149,7 @@ func NewMetadataWithTimestamp(id, issuer, schema string, issuanceDate time.Time)
 		ModelVersion: ModelVersionV1,
 		Context:      []string{W3Context},
 		ID:           id,
-		Type:         []string{Type},
+		Type:         []string{Type, util.CredentialTypeReference_v1_0},
 		Issuer:       issuer,
 		IssuanceDate: issuanceDate.Format(time.RFC3339),
 		Schema: Schema{
@@ -159,7 +164,7 @@ func NewMetadataWithTimestampAndExpiry(id, issuer, schema string, issuanceDate t
 		ModelVersion: ModelVersionV1,
 		Context:      []string{W3Context},
 		ID:           id,
-		Type:         []string{Type},
+		Type:         []string{Type, util.CredentialTypeReference_v1_0},
 		Issuer:       issuer,
 		IssuanceDate: issuanceDate.Format(time.RFC3339),
 		Schema: Schema{
@@ -169,13 +174,14 @@ func NewMetadataWithTimestampAndExpiry(id, issuer, schema string, issuanceDate t
 		ExpirationDate: expiry.Format(time.RFC3339),
 	}
 }
+
 // Deprecated: Callers should specify an issuance date when constructing Metadata.
 func NewDefaultMetadata(id, issuer, schema string) Metadata {
 	return Metadata{
 		ModelVersion: ModelVersionV1,
 		Context:      []string{W3Context},
 		ID:           id,
-		Type:         []string{Type},
+		Type:         []string{Type, util.CredentialTypeReference_v1_0},
 		Issuer:       issuer,
 		IssuanceDate: time.Now().UTC().Format(time.RFC3339),
 		Schema: Schema{
@@ -297,133 +303,3 @@ func (c *Claim) GetProof() *proof.Proof {
 func (c *Claim) SetProof(p *proof.Proof) {
 	c.Proof = p
 }
-
-// TODO(gabe): provide json files for reference; consider packr or other means of adding file contents as part of binary
-// Go string representation of the Verifiable Credential JSON schema
-// It is stored as a string to avoid having to load a JSON file at runtime, which is not possible in Go
-const VerifiableCredentialSchema string = `{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "description": "W3C Verifiable Credential using JSON interchange format",
-  "type": "object",
-  "properties": {
-    "version": {
-      "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$"
-    },
-    "id": {
-      "type": "string",
-      "pattern": "^did:work:\\w+#[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-    },
-    "type": {
-      "type": "array",
-      "contains": {
-        "const": "VerifiableCredential"
-      }
-    },
-    "issuer": {
-      "type": "string",
-      "pattern": "^did:work:\\w+$"
-    },
-    "issuanceDate": {
-      "type": "string",
-      "format": "date-time-rfc3339"
-    },
-    "targetHolder": {
-      "type": "string",
-      "pattern": "^did:work:\\w+$"
-    },
-    "credentialSchema": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^did:work:\\S+\\;id=\\S+;version=\\d+\\.\\d+$"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "JsonSchemaValidator2018"
-          ]
-        }
-      },
-      "required": [
-        "id",
-        "type"
-      ],
-      "additionalProperties": false
-    },
-    "credentialSubject": {
-      "type": "object",
-      "minProperties": 1
-    },
-    "claimProof": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": [
-            "RsaSignature2018"
-          ]
-        },
-        "created": {
-          "type": "string",
-          "format": "date-time-rfc3339"
-        },
-        "creator": {
-          "type": "string"
-        },
-        "claimSignatureValue": {
-          "type": "object",
-          "minProperties": 1
-        }
-      },
-      "required": [
-        "type",
-        "created",
-        "creator",
-        "claimSignatureValue"
-      ],
-      "additionalProperties": false
-    },
-    "proof": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": [
-            "RsaSignature2018"
-          ]
-        },
-        "created": {
-          "type": "string",
-          "format": "date-time-rfc3339"
-        },
-        "creator": {
-          "type": "string"
-        },
-        "signatureValue": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "type",
-        "created",
-        "creator",
-        "signatureValue"
-      ],
-      "additionalProperties": false
-    }
-  },
-  "required": [
-    "version",
-    "id",
-    "type",
-    "issuer",
-    "issuanceDate",
-    "targetHolder",
-    "credentialSchema",
-    "credentialSubject",
-    "proof"
-  ],
-  "additionalProperties": false
-}`

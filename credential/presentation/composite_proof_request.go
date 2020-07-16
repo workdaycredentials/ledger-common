@@ -91,7 +91,12 @@ func (p *ProofRequestHolder) FulfillCriteria(criteria *CriteriaHolder, credentia
 	if err != nil {
 		return err
 	}
-	fulfilledCriterion, err := FulfillCriterionForVCs(criteria.Criterion, criteria.Variables, creds, string(keyRefBytes), signingKey)
+
+	signer, err := proof.NewEd25519Signer(signingKey, string(keyRefBytes))
+	if err != nil {
+		return err
+	}
+	fulfilledCriterion, err := FulfillCriterionForVCs(criteria.Criterion, criteria.Variables, creds, signer)
 	if err != nil {
 		return err
 	}
@@ -142,7 +147,11 @@ func (p *ProofRequestHolder) GenerateProofResponse(signingKeyRefB64Enc string, s
 		fulfilledCriterion = append(fulfilledCriterion, resp)
 	}
 
-	submission, err := GenerateCompositeProofResponse(p.SignedProofRequest, fulfilledCriterion, string(keyRef), signingKey)
+	signer, err := proof.NewEd25519Signer(signingKey, string(keyRef))
+	if err != nil {
+		return "", err
+	}
+	submission, err := GenerateCompositeProofResponse(p.SignedProofRequest, fulfilledCriterion, signer)
 	if err != nil {
 		return "", err
 	}
@@ -155,18 +164,16 @@ func (p *ProofRequestHolder) GenerateProofResponse(signingKeyRefB64Enc string, s
 	return b64Enc.EncodeToString(respBytes), nil
 }
 
-func (pri *ProofRequestHolder) CheckVerifierSignature(verifierDIDDocB64Encoded string) error {
-
-	proofReq := pri.SignedProofRequest
+func (p *ProofRequestHolder) CheckVerifierSignature(verifierDIDDocB64Encoded string) error {
+	proofReq := p.SignedProofRequest
 
 	decodeDIDDocBytes, err := base64.StdEncoding.DecodeString(verifierDIDDocB64Encoded)
 	if err != nil {
 		return err
 	}
 
-	verifierDIDDoc := &ledger.DIDDoc{}
-	err = json.Unmarshal(decodeDIDDocBytes, verifierDIDDoc)
-	if err != nil {
+	var verifierDIDDoc ledger.DIDDoc
+	if err = json.Unmarshal(decodeDIDDocBytes, &verifierDIDDoc); err != nil {
 		return err
 	}
 
@@ -176,24 +183,24 @@ func (pri *ProofRequestHolder) CheckVerifierSignature(verifierDIDDocB64Encoded s
 		return fmt.Errorf("DID Doc [%s] does not match Proof Request Creator [%s]", verifierDID, proofCreator)
 	}
 
-	if proofReq.Proof.Type == proof.WorkEdSignatureType {
-		publicKey, err := getPublicKeyUsedForSigning(verifierDIDDoc.PublicKey, proofReq.Proof.Creator)
-		if err != nil {
-			return err
-		}
-
-		decodedPublicKey, err := publicKey.GetDecodedPublicKey()
-		if err != nil {
-			return err
-		}
-		unsignedBytes, err := canonical.Marshal(proofReq.UnsignedCompositeProofRequestInstanceChallenge)
-		if err != nil {
-			return err
-		}
-		return proof.VerifyWorkEd25519Proof(decodedPublicKey, proofReq.Proof, unsignedBytes)
+	// get pub key first
+	publicKey, err := getPublicKeyUsedForSigning(verifierDIDDoc.PublicKey, proofReq.Proof.GetVerificationMethod())
+	if err != nil {
+		return err
+	}
+	decodedPublicKey, err := publicKey.GetDecodedPublicKey()
+	if err != nil {
+		return err
 	}
 
-	return fmt.Errorf("Signature schema not supported: %s", proofReq.Proof.Type)
+	// build suite and verifier to check proof
+	verifier := &proof.Ed25519Verifier{PubKey: decodedPublicKey}
+	suite, err := proof.SignatureSuites().GetSuiteForProof(proofReq.GetProof())
+	if err != nil {
+		return err
+	}
+
+	return suite.Verify(&proofReq, verifier)
 }
 
 func getPublicKeyUsedForSigning(publicKeys []did.KeyDef, signingKeyRef string) (*did.KeyDef, error) {
@@ -202,8 +209,7 @@ func getPublicKeyUsedForSigning(publicKeys []did.KeyDef, signingKeyRef string) (
 			return &publicKey, nil
 		}
 	}
-
-	return nil, fmt.Errorf("No keys match key ref %s", signingKeyRef)
+	return nil, fmt.Errorf("no keys match key ref %s", signingKeyRef)
 }
 
 // CriteriaHolder holds a Criterion, the index of that Criterion in the underlying

@@ -1,155 +1,52 @@
 package ledger
 
 import (
-	"bytes"
-	"encoding/base64"
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/workdaycredentials/ledger-common/did"
 	"github.com/workdaycredentials/ledger-common/proof"
 	"github.com/workdaycredentials/ledger-common/util"
-	"github.com/workdaycredentials/ledger-common/util/canonical"
 )
 
-const (
-	pubKeyB64 = "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEskkOL4FWlPT6lvfNRen0TU6d6LtzbAnSuTZv0j5Ey1X9jj+TB6kckk8QVBrSIB1D83w2W7ABAnJkLnyomNCUOw=="
-)
-
-var (
-	keySeed       = []byte("12345678901234567890123456789012")
-	issuerPrivKey = ed25519.NewKeyFromSeed(keySeed) // this matches the public key in didDocJson
-	issuerPubKey  = issuerPrivKey.Public().(ed25519.PublicKey)
-)
-
-func TestSignatureOfGeneratedLedgerDIDDoc(t *testing.T) {
-	id := "did:work:9999999999999"
-
-	unsignedDIDDoc := did.UnsignedDIDDoc{
-		SchemaContext: "https://w3id.org/did/v1",
-		ID:            id,
-		PublicKey:     []did.KeyDef{},
+func TestDIDDocProof(t *testing.T) {
+	ed25519KeyType := proof.Ed25519KeyType
+	signatureType := proof.WorkEdSignatureType
+	doc, privateKey := did.GenerateDIDDoc(ed25519KeyType, signatureType)
+	pubKey := privateKey.Public().(ed25519.PublicKey)
+	ledgerDoc := DIDDoc{
+		Metadata: &Metadata{
+			Type:         util.DIDDocTypeReference_v1_0,
+			ModelVersion: util.Version_1_0,
+			ID:           doc.ID,
+			Author:       doc.PublicKey[0].Controller,
+			Authored:     time.Now().UTC().Format(time.RFC3339),
+		},
+		DIDDoc: doc,
 	}
 
-	p := proof.Proof{
-		Created:        "2020-03-12T10:19:26Z",
-		Creator:        "did:work:123456789012345#key-1",
-		Nonce:          "c04d4351-8fa3-4b23-8096-6ad5821f806b",
-		SignatureValue: "AN1rKpdgkGvZ68kvZ3upDgUyMU4JBJFMwc3DRetqHfx4FDvNF8Zd1ZkDoNF7SqdHHJ5LEdC3Mtrb73GayjG3MQZ8HJHSVFjUc",
-		Type:           "EcdsaSecp256k1VerificationKey2019",
-	}
+	suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
+	assert.NoError(t, err)
 
-	docBytes, err := canonical.Marshal(unsignedDIDDoc)
-	require.NoError(t, err)
+	signer, err := proof.NewEd25519Signer(privateKey, didDoc.PublicKey[0].ID)
+	assert.NoError(t, err)
 
-	unsignedPlusNonce := util.AddNonceToDoc(docBytes, p.Nonce)
-	unsignedPlusNonceB64 := base64.StdEncoding.EncodeToString(unsignedPlusNonce)
+	assert.NoError(t, suite.Sign(&ledgerDoc, signer))
 
-	base58PublicKey, err := util.Base64ToBase58(pubKeyB64)
-	require.NoError(t, err)
+	verifier := &proof.Ed25519Verifier{PubKey: pubKey}
+	assert.NoError(t, suite.Verify(&ledgerDoc, verifier))
 
-	verified, err := proof.VerifySecp256k1Signature(base58PublicKey, unsignedPlusNonceB64, p.SignatureValue)
-	require.NoError(t, err)
-	require.True(t, verified)
+	// Validate using methods on did doc
+	assert.NoError(t, didDoc.ValidateProof())
 
-	signedDIDDoc := &did.DIDDoc{
-		UnsignedDIDDoc: unsignedDIDDoc,
-		Proof:          &p,
-	}
-
-	ledgerDIDDocProof := &proof.Proof{
-		Created:        "2020-03-12T10:19:26Z",
-		Creator:        "did:work:123456789012345#key-1",
-		Nonce:          "dfb4c3ef-6ea2-4809-aaf5-da7a5e3c5f5d",
-		SignatureValue: "iKx1CJLi3888eaTrPqpLTDGx4hWrNKcGMNXaLuhmFi2hPuKER6GXpuffubPcMnd4d5E4wkVUs1rLR6kr4wvSUMv5qpb7KRWqC9",
-		Type:           "EcdsaSecp256k1VerificationKey2019",
-	}
-
-	ledgerMetadata := &Metadata{
-		Type:         "https://credentials.workday.com/docs/specification/v1.0/did-doc.json",
-		ModelVersion: "1.0",
-		ID:           "did:work:9999999999999",
-		Author:       "did:work:123456789012345#key-1",
-		Authored:     "2020-03-12T10:19:26Z",
-	}
-
-	ledgerDIDDoc := DIDDoc{
-		DIDDoc:   signedDIDDoc,
-		Metadata: ledgerMetadata,
-	}
-
-	ledgerDIDDocBytes, err := canonical.Marshal(ledgerDIDDoc)
-	require.NoError(t, err)
-
-	var ledgerDIDDocBuffer bytes.Buffer
-	ledgerDIDDocBuffer.Write(ledgerDIDDocBytes)
-	ledgerDIDDocBuffer.Write([]byte("." + ledgerDIDDocProof.Nonce))
-	ledgerDIDDocPlusNonce := ledgerDIDDocBuffer.Bytes()
-
-	ledgerDIDDocPlusNonceB64 := base64.StdEncoding.EncodeToString(ledgerDIDDocPlusNonce)
-
-	verifiedLedgerDIDDoc, err := proof.VerifySecp256k1Signature(base58PublicKey, ledgerDIDDocPlusNonceB64, ledgerDIDDocProof.SignatureValue)
-	require.NoError(t, err)
-	require.True(t, verifiedLedgerDIDDoc)
-}
-
-func TestVerifyAdminSignatureDIDDoc(t *testing.T) {
-	pubKeyB64 := "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEskkOL4FWlPT6lvfNRen0TU6d6LtzbAnSuTZv0j5Ey1X9jj+TB6kckk8QVBrSIB1D83w2W7ABAnJkLnyomNCUOw=="
-	base58PublicKey, err := util.Base64ToBase58(pubKeyB64)
-	require.NoError(t, err)
-
-	adminPublicKey := did.KeyDef{
-		ID:              "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1",
-		Type:            proof.EcdsaSecp256k1KeyType,
-		Controller:      "did:work:6sYe1y3zXhmyrBkgHgAgaq",
-		PublicKeyBase58: base58PublicKey,
-	}
-
-	id := "did:work:9999999999999"
-
-	unsignedDIDDoc := did.UnsignedDIDDoc{
-		SchemaContext: "https://w3id.org/did/v1",
-		ID:            id,
-		PublicKey:     []did.KeyDef{},
-	}
-
-	p := proof.Proof{
-		Created:            "2020-03-12T10:19:26Z",
-		VerificationMethod: "did:work:123456789012345#key-1",
-		Nonce:              "c04d4351-8fa3-4b23-8096-6ad5821f806b",
-		SignatureValue:     "AN1rKpdgkGvZ68kvZ3upDgUyMU4JBJFMwc3DRetqHfx4FDvNF8Zd1ZkDoNF7SqdHHJ5LEdC3Mtrb73GayjG3MQZ8HJHSVFjUc",
-		Type:               "EcdsaSecp256k1Signature2019",
-	}
-
-	docBytes, err := canonical.Marshal(unsignedDIDDoc)
-	require.NoError(t, err)
-
-	withNonce := util.AddNonceToDoc(docBytes, p.Nonce)
-	didDocB64Message := base64.StdEncoding.EncodeToString(withNonce)
-	didDocVerified, err := proof.VerifySecp256k1Signature(adminPublicKey.PublicKeyBase58, didDocB64Message, p.SignatureValue)
-	require.NoError(t, err)
-	require.True(t, didDocVerified)
-
-	didInvalid := "did:work:invalid"
-	unsignedDIDDocInvalid := &did.UnsignedDIDDoc{
-		ID:        didInvalid,
-		PublicKey: []did.KeyDef{},
-	}
-
-	docBytesInvalid, err := canonical.Marshal(unsignedDIDDocInvalid)
-	require.NoError(t, err)
-
-	withNonce = util.AddNonceToDoc(docBytesInvalid, p.Nonce)
-	invalidDIDDocB64Message := base64.StdEncoding.EncodeToString(withNonce)
-	didDocVerified, err = proof.VerifySecp256k1Signature(adminPublicKey.PublicKeyBase58, invalidDIDDocB64Message, p.SignatureValue)
-	require.NoError(t, err)
-	require.False(t, didDocVerified)
+	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.ID: didDoc}}
+	assert.NoError(t, didDoc.Validate(context.Background(), provider.GetDIDDoc))
 }
 
 func TestVerifySchemaProof(t *testing.T) {
@@ -187,12 +84,14 @@ func TestVerifySchemaProof(t *testing.T) {
 	var s JSONSchemaMap
 	assert.NoError(t, json.Unmarshal([]byte(testSchema), &s))
 
-	didDoc, privKey := did.GenerateDIDDoc(proof.WorkEdSignatureType)
+	signatureType := proof.WorkEdSignatureType
+	ed25519KeyType := proof.Ed25519KeyType
+	didDoc, privKey := GenerateLedgerDIDDoc(ed25519KeyType, signatureType)
 	now := time.Now().UTC().Format(time.RFC3339)
 	pubKey, err := base58.Decode(didDoc.PublicKey[0].PublicKeyBase58)
 	assert.NoError(t, err)
 
-	unsignedSchema := Schema{
+	schema := Schema{
 		Metadata: &Metadata{
 			Type:         util.SchemaTypeReference_v1_0,
 			ModelVersion: util.Version_1_0,
@@ -204,9 +103,21 @@ func TestVerifySchemaProof(t *testing.T) {
 		JSONSchema: &JSONSchema{Schema: s},
 	}
 
-	err = SignLedgerDoc(unsignedSchema, privKey, didDoc.PublicKey[0].ID)
+	suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
 	assert.NoError(t, err)
-	assert.NoError(t, VerifyLedgerProof(unsignedSchema, pubKey))
+
+	signer, err := proof.NewEd25519Signer(privKey, didDoc.PublicKey[0].ID)
+	assert.NoError(t, err)
+
+	assert.NoError(t, suite.Sign(schema, signer))
+
+	verifier := &proof.Ed25519Verifier{PubKey: pubKey}
+	assert.NoError(t, suite.Verify(schema, verifier))
+
+	// Validate using method on schema
+	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.ID: didDoc}}
+	assert.NoError(t, schema.ValidateProof(context.Background(), provider.GetDIDDoc))
+	assert.NoError(t, schema.ValidateStatic())
 }
 
 // Revocation //
@@ -219,13 +130,46 @@ func TestHashing(t *testing.T) {
 }
 
 func TestVerifyRevocationProof(t *testing.T) {
-	didDoc, privKey := did.GenerateDIDDoc(proof.WorkEdSignatureType)
+	signatureType := proof.WorkEdSignatureType
+	ed25519KeyType := proof.Ed25519KeyType
+	didDoc, privKey := GenerateLedgerDIDDoc(ed25519KeyType, signatureType)
 	keyRef := didDoc.PublicKey[0].ID
 
-	revocation, err := GenerateLedgerRevocation(CredentialID, didDoc.ID, proof.WorkEd25519Signer{PrivKey: privKey}, keyRef)
+	signer, err := proof.NewEd25519Signer(privKey, keyRef)
 	assert.NoError(t, err)
 
-	pubKey, err := base58.Decode(didDoc.PublicKey[0].PublicKeyBase58)
+	revocation, err := GenerateLedgerRevocation(CredentialID, didDoc.ID, signer, signatureType)
 	assert.NoError(t, err)
-	assert.NoError(t, VerifyLedgerProof(*revocation, pubKey))
+
+	// Validate using methods on revocation
+	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.ID: didDoc}}
+	assert.NoError(t, revocation.ValidateProof(context.Background(), provider.GetDIDDoc))
+	assert.NoError(t, revocation.ValidateStatic())
+}
+
+func TestGenericVerify(t *testing.T) {
+	// Create DID Doc and mock provider
+	ed25519KeyType := proof.Ed25519KeyType
+	signatureType := proof.WorkEdSignatureType
+	didDoc, privKey := GenerateLedgerDIDDoc(ed25519KeyType, signatureType)
+	keyRef := didDoc.PublicKey[0].ID
+
+	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.ID: didDoc}}
+
+	signer, err := proof.NewEd25519Signer(privKey, keyRef)
+	assert.NoError(t, err)
+
+	suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
+	assert.NoError(t, err)
+
+	testData := proof.GenericProvable{
+		JSONData: "{\"test\":\"data\"}",
+	}
+
+	err = suite.Sign(&testData, signer)
+	assert.NoError(t, err)
+
+	// now verify
+	err = Verify(ctx, &testData, provider.GetDIDDoc)
+	assert.NoError(t, err)
 }

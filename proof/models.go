@@ -3,6 +3,7 @@ package proof
 import (
 	"crypto"
 	"crypto/rand"
+	"errors"
 	"reflect"
 
 	"github.com/sirupsen/logrus"
@@ -14,7 +15,7 @@ var (
 )
 
 type (
-	// KeyType is the type of cryptographic key that is listed in a DID Document.
+	// Type is the type of cryptographic key that is listed in a DID Document.
 	KeyType string
 
 	// SignatureType is the signature suite that was used to generate a digital signature,
@@ -25,7 +26,8 @@ type (
 )
 
 const (
-	JCSEdKeyType       KeyType       = "JcsEd25519Key2020"
+	// The only key type that should be used for Ed25519 keys
+	Ed25519KeyType     KeyType       = "Ed25519VerificationKey2018"
 	JCSEdSignatureType SignatureType = "JcsEd25519Signature2020"
 
 	EcdsaSecp256k1KeyType       KeyType       = "EcdsaSecp256k1VerificationKey2019"
@@ -39,12 +41,6 @@ const (
 	// signatures in existing signed documents.
 	WorkEdSignatureType SignatureType = "WorkEd25519Signature2020"
 
-	// Note: this is not a typo, both types below are represented by the same string.
-
-	// Deprecated: Do not create more keys of this type. The system can still use these keys
-	// for support of existing DID Documents.
-	Ed25519KeyType KeyType = "Ed25519VerificationKey2018"
-
 	// Deprecated: Do not create more signatures of this type. The system can still verify these
 	// signatures in existing signed documents.
 	Ed25519SignatureType SignatureType = "Ed25519VerificationKey2018"
@@ -53,34 +49,18 @@ const (
 	V2 ModelVersion = 2
 )
 
-func GetCorrespondingKeyType(t SignatureType) KeyType {
-	switch t {
-	case JCSEdSignatureType:
-		return JCSEdKeyType
+func (s SignatureType) CorrespondingKeyType() KeyType {
+	switch s {
 	case EcdsaSecp256k1SignatureType:
 		return EcdsaSecp256k1KeyType
+	case JCSEdSignatureType:
+		fallthrough
 	case WorkEdSignatureType:
-		return WorkEdKeyType
+		fallthrough
 	case Ed25519SignatureType:
 		return Ed25519KeyType
 	default:
-		logrus.Errorf("unknown type: %s", t)
-		return ""
-	}
-}
-
-func GetCorrespondingSignatureType(t KeyType) SignatureType {
-	switch t {
-	case JCSEdKeyType:
-		return JCSEdSignatureType
-	case EcdsaSecp256k1KeyType:
-		return EcdsaSecp256k1SignatureType
-	case WorkEdKeyType:
-		return WorkEdSignatureType
-	case Ed25519KeyType:
-		return Ed25519SignatureType
-	default:
-		logrus.Errorf("unknown type: %s", t)
+		logrus.Errorf("unknown type: %s", s)
 		return ""
 	}
 }
@@ -139,16 +119,25 @@ type Provable interface {
 type Signer interface {
 	ID() string
 	Sign(toSign []byte) ([]byte, error)
-	// TODO remove this method. The signature type is determined by the signature suite, not the proof algorithm.
-	Type() SignatureType
-	KeyType() KeyType
+	Type() KeyType
+}
+
+// NewEd25519Signer is used to build a signer with validations
+func NewEd25519Signer(key ed25519.PrivateKey, keyID string) (Signer, error) {
+	if key == nil {
+		return nil, errors.New("must have valid private key")
+	}
+	if keyID == "" {
+		return nil, errors.New("must have valid key ID")
+	}
+	return &Ed25519Signer{KeyID: keyID, PrivateKey: key}, nil
 }
 
 // Verifier can verify a digital signature of a particular signing algorithm.
 // This is basically a wrapper around a public key.
 type Verifier interface {
 	Verify(data, signature []byte) (bool, error)
-	KeyType() KeyType
+	Type() KeyType
 }
 
 // A generic holder for an object with an embedded proof. The JSON cannot be assumed to be canonical
@@ -158,15 +147,18 @@ type GenericProvable struct {
 	*Proof
 }
 
-func (t *GenericProvable) GetProof() *Proof {
-	return t.Proof
+func (g *GenericProvable) GetProof() *Proof {
+	return g.Proof
 }
 
-func (t *GenericProvable) SetProof(p *Proof) {
-	t.Proof = p
+func (g *GenericProvable) SetProof(p *Proof) {
+	g.Proof = p
 }
 
+// Unification type for all ed25519 based signers
+// Intended to be constructed via the `NewEd25519Signer` method
 type Ed25519Signer struct {
+	// The fully qualified key id (e.g. did:work:abcd#key-1)
 	KeyID      string
 	PrivateKey ed25519.PrivateKey
 }
@@ -179,11 +171,7 @@ func (s *Ed25519Signer) Sign(toSign []byte) ([]byte, error) {
 	return s.PrivateKey.Sign(rand.Reader, toSign, crypto.Hash(0))
 }
 
-func (s *Ed25519Signer) Type() SignatureType {
-	return Ed25519SignatureType
-}
-
-func (s *Ed25519Signer) KeyType() KeyType {
+func (s *Ed25519Signer) Type() KeyType {
 	return Ed25519KeyType
 }
 
@@ -195,6 +183,6 @@ func (v *Ed25519Verifier) Verify(data, signature []byte) (bool, error) {
 	return ed25519.Verify(v.PubKey, data, signature), nil
 }
 
-func (v *Ed25519Verifier) KeyType() KeyType {
+func (v *Ed25519Verifier) Type() KeyType {
 	return Ed25519KeyType
 }

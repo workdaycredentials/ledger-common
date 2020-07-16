@@ -121,7 +121,7 @@ func IDIsInVersionRange(schemaID string, versionRange string) (bool, error) {
 
 type RangeBounded func(subject int) bool
 
-//inclusive lower bounded value
+// inclusive lower bounded value
 func lowerBoundedRange(lowerBound int) RangeBounded {
 	return func(subject int) bool {
 		return subject >= lowerBound

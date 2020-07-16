@@ -8,6 +8,14 @@ import (
 
 var box = packr.NewBox("./json")
 
+const (
+	LedgerMetadataSchema string = "ledger_metadata"
+)
+
+func GetJSONFile(name string) (string, error) {
+	return box.FindString(fmt.Sprintf("%s.json", name))
+}
+
 func GetSchemasOrPanic(name string) (schema string, meta string) {
 	var err error
 	schema, meta, err = GetSchemas(name)

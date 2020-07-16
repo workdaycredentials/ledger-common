@@ -38,11 +38,11 @@ func DeepCopy(from interface{}, to interface{}) error {
 	if !IsPtrOrSlice(to) {
 		return errors.New("to must be a ptr or slice type")
 	}
-	bytes, err := json.Marshal(from)
+	b, err := json.Marshal(from)
 	if err != nil {
 		return err
 	}
-	if err = json.Unmarshal(bytes, to); err != nil {
+	if err = json.Unmarshal(b, to); err != nil {
 		return err
 	}
 	return nil

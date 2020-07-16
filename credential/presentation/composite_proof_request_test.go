@@ -7,9 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/ed25519"
 
 	"github.com/workdaycredentials/ledger-common/credential"
 	"github.com/workdaycredentials/ledger-common/did"
@@ -37,7 +35,7 @@ func TestExtractVerifierFromProofRequest(t *testing.T) {
 
 func TestCanGetCriteria(t *testing.T) {
 	b64Enc := base64.StdEncoding
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 
 	contact, _ := proofReqStruct.GetCriteria(0)
 	descriptionBytes, err := b64Enc.DecodeString(contact.GetDescription())
@@ -64,7 +62,7 @@ func TestCanGetCriteria(t *testing.T) {
 
 func TestCanCheckIfCredMatchesCriteria(t *testing.T) {
 	b64Enc := base64.StdEncoding
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 
 	base64V0ContactCred := b64Enc.EncodeToString([]byte(contactUnversionedCred))
 	base64PayslipCred := b64Enc.EncodeToString([]byte(paySlipCred1))
@@ -79,7 +77,7 @@ func TestCanCheckIfCredMatchesCriteria(t *testing.T) {
 
 func TestCanCheckIfV1CredMatchesCriteria(t *testing.T) {
 	b64Enc := base64.StdEncoding
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 	contactHolder, _ := proofReqStruct.GetCriteria(0)
 
 	contactCredV1, _ := canonical.Marshal(contactV1Cred)
@@ -93,7 +91,7 @@ func TestCanCheckIfV1CredMatchesCriteria(t *testing.T) {
 
 func TestCheckIfExpiredV1CredMatchesCriteria(t *testing.T) {
 	b64Enc := base64.StdEncoding
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 	contactHolder, _ := proofReqStruct.GetCriteria(0)
 	expiredCred := contactV1Cred
 
@@ -106,7 +104,7 @@ func TestCheckIfExpiredV1CredMatchesCriteria(t *testing.T) {
 
 func TestCheckIfUnExpiredV1CredMatchesCriteria(t *testing.T) {
 	b64Enc := base64.StdEncoding
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 	contactHolder, _ := proofReqStruct.GetCriteria(0)
 	expiredCred := contactV1Cred
 
@@ -119,7 +117,7 @@ func TestCheckIfUnExpiredV1CredMatchesCriteria(t *testing.T) {
 
 func TestAllowedExpiredCredentialCanBeSubmitted(t *testing.T) {
 	b64Enc := base64.StdEncoding
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 	allowExpired := true
 	proofReqStruct.SignedProofRequest.ProofRequest.Criteria[0].AllowExpired = &allowExpired
 	contactHolder, _ := proofReqStruct.GetCriteria(0)
@@ -134,7 +132,7 @@ func TestAllowedExpiredCredentialCanBeSubmitted(t *testing.T) {
 
 func TestCanCheckIfV1CredMatchesCriteriaFailsIfCriteriaPropertyIsMissingProof(t *testing.T) {
 	b64Enc := base64.StdEncoding
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 	paySlipCriteriaHolder, _ := proofReqStruct.GetCriteria(2)
 
 	payslip1CredV1, _ := json.Marshal(paySlipV1Cred1)
@@ -170,7 +168,7 @@ func TestCanCheckIfV1CredMatchesCriteriaFailsIfCriteriaPropertyIsMissingProof(t 
 func TestCanFulfillCriteria(t *testing.T) {
 	b64Enc := base64.StdEncoding
 	b64EncKeyRef := b64Enc.EncodeToString([]byte("key-1"))
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 
 	contactHolder, _ := proofReqStruct.GetCriteria(0)
 	jsonArr := "[" + contactUnversionedCred + "]"
@@ -184,7 +182,7 @@ func TestCanFulfillCriteria(t *testing.T) {
 func TestCanFulfillCriteriaWithV1Credential(t *testing.T) {
 	b64Enc := base64.StdEncoding
 	b64EncKeyRef := b64Enc.EncodeToString([]byte("key-1"))
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 
 	addressHolder, _ := proofReqStruct.GetCriteria(1)
 
@@ -237,7 +235,7 @@ func TestCanFulfillCriteriaWithV1Credential(t *testing.T) {
 func TestCanFulfilCriteriaWithV1CredentialFailsIfCredentialIsMissingProperties(t *testing.T) {
 	b64Enc := base64.StdEncoding
 	b64EncKeyRef := b64Enc.EncodeToString([]byte("key-1"))
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 
 	contactHolder, _ := proofReqStruct.GetCriteria(0)
 	contactCredV1, _ := canonical.Marshal(contactV1Cred)
@@ -252,7 +250,7 @@ func TestCanFulfilCriteriaWithV1CredentialFailsIfCredentialIsMissingProperties(t
 
 func TestCanGenerateProofRespString(t *testing.T) {
 	b64Enc := base64.StdEncoding
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 	b64EncKeyRef := b64Enc.EncodeToString([]byte("did:work:junk#key-1"))
 	b64SigningKey := b64Enc.EncodeToString(holderSigningPrivKey)
 
@@ -277,7 +275,7 @@ func TestCanGenerateProofRespString(t *testing.T) {
 func TestCanGenerateProofRespStringWithV1Credentials(t *testing.T) {
 	subjectDID := "did:work:51wzdn5u7nPp944zpDo7b2"
 	b64Enc := base64.StdEncoding
-	proofReqStruct := getPopulatedPr()
+	proofReqStruct := getPopulatedProofRequest()
 	b64EncKeyRef := b64Enc.EncodeToString([]byte(subjectDID + "#key-1"))
 	b64SigningKey := b64Enc.EncodeToString(holderSigningPrivKey)
 
@@ -325,12 +323,17 @@ func TestCanGenerateProofRespStringWithV1Credentials(t *testing.T) {
 			}
 		}
 	}
-	validateProofRespProof(t, &generatedProofResponse)
+
+	p := generatedProofResponse.Proof[0]
+	suite, err := proof.SignatureSuites().GetSuiteForProof(p)
+	assert.NoError(t, err)
+	verifier := &proof.Ed25519Verifier{PubKey: holderPublicKey}
+	assert.NoError(t, suite.Verify(&generatedProofResponse, verifier))
 }
 
 func TestHolderCanReturnDecomposedSchemaQuery(t *testing.T) {
 	b64Enc := base64.StdEncoding
-	versionedProofRequest := getPopulatedPrWithSchemaRange()
+	versionedProofRequest := getPopulatedProofReqWithSchemaRange()
 
 	criteriaHolder, _ := versionedProofRequest.GetCriteria(0)
 	contactCredV1, _ := canonical.Marshal(contactV1Cred)
@@ -340,7 +343,7 @@ func TestHolderCanReturnDecomposedSchemaQuery(t *testing.T) {
 
 func TestHolderSchemaRangeMatchesFiltersCorrectly(t *testing.T) {
 	b64Enc := base64.StdEncoding
-	versionedProofRequest := getPopulatedPrWithSchemaRange()
+	versionedProofRequest := getPopulatedProofReqWithSchemaRange()
 
 	criteriaHolder, _ := versionedProofRequest.GetCriteria(0)
 
@@ -363,7 +366,7 @@ func TestHolderSchemaRangeMatchesFiltersCorrectly(t *testing.T) {
 
 func TestSchemaRangeHolderCanFulfillCriteria(t *testing.T) {
 	b64Enc := base64.StdEncoding
-	versionedProofRequest := getPopulatedPrWithSchemaRange()
+	versionedProofRequest := getPopulatedProofReqWithSchemaRange()
 
 	contactHolder, _ := versionedProofRequest.GetCriteria(0)
 
@@ -377,24 +380,18 @@ func TestSchemaRangeHolderCanFulfillCriteria(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func validateProofRespProof(t *testing.T, submission *CompositeProofResponseSubmission) {
-	unsignedBytes, err := canonical.Marshal(submission.UnsignedCompositeProofResponseSubmission) // these bytes should be different
-	assert.NoError(t, err)
-	assert.NoError(t, proof.VerifyWorkEd25519Proof(holderSigningPrivKey.Public().(ed25519.PublicKey), submission.Proof[0], unsignedBytes))
-}
-
-func getPopulatedPr() ProofRequestHolder {
+func getPopulatedProofRequest() ProofRequestHolder {
 	b64Enc := base64.StdEncoding
 	proofReqStruct := &ProofRequestHolder{}
-	b64EncPr := b64Enc.EncodeToString([]byte(proofReqChallenge))
-	_ = proofReqStruct.Populate(b64EncPr)
+	b64ProofRequest := b64Enc.EncodeToString([]byte(proofReqChallenge))
+	_ = proofReqStruct.Populate(b64ProofRequest)
 	return *proofReqStruct
 }
 
-func getPopulatedPrWithSchemaRange() ProofRequestHolder {
+func getPopulatedProofReqWithSchemaRange() ProofRequestHolder {
 	marshaled, _ := json.Marshal(ProofReaChallengeWithSchemaRange)
 	b64Enc := base64.StdEncoding
-	b64EncPr := b64Enc.EncodeToString([]byte(marshaled))
+	b64EncPr := b64Enc.EncodeToString(marshaled)
 	versionedProofRequest := &ProofRequestHolder{}
 	_ = versionedProofRequest.Populate(b64EncPr)
 	return *versionedProofRequest
@@ -433,40 +430,39 @@ func Test_isV1Credential(t *testing.T) {
 }
 
 func Test_CheckVerifierSignatureWorkEd25519(t *testing.T) {
-
 	// Create a Verifier DIDDoc
-	verifierDIDDoc, verifierEd25519PrivKey := did.GenerateDIDDoc(proof.JCSEdSignatureType)
-	ledgerMetadata := &ledger.Metadata{
-		ID: verifierDIDDoc.ID,
-	}
+	verifierDIDDoc, privKey := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
 	ledgerDIDDoc := &ledger.DIDDoc{
-		DIDDoc:   verifierDIDDoc,
-		Metadata: ledgerMetadata,
+		Metadata: &ledger.Metadata{
+			ID: verifierDIDDoc.ID,
+		},
+		DIDDoc: verifierDIDDoc,
 	}
 	verifierDIDDocBytes, err := canonical.Marshal(ledgerDIDDoc)
 	assert.NoError(t, err)
 	verifierDIDDocB64Encoded := base64.StdEncoding.EncodeToString(verifierDIDDocBytes)
 
 	// Get test Proof Request and set Verifier
-	testProofRequestHolder := getPopulatedPr()
+	testProofRequestHolder := getPopulatedProofRequest()
 	unsigned := testProofRequestHolder.SignedProofRequest.UnsignedCompositeProofRequestInstanceChallenge
 	unsigned.ProofRequest.Verifier = verifierDIDDoc.ID
 
 	// Create proof over Proof Request
-	unsignedBytes, err := canonical.Marshal(unsigned)
-	assert.NoError(t, err)
-	signingKeyRef := verifierDIDDoc.ID + "#" + did.InitialKey
-	nonce := uuid.New().String()
-	proof, err := proof.CreateWorkEd25519Proof(unsignedBytes, signingKeyRef, verifierEd25519PrivKey, nonce)
+	signingKeyRef := did.GenerateKeyID(verifierDIDDoc.ID, did.InitialKey)
+	signer, err := proof.NewEd25519Signer(privKey, signingKeyRef)
 	assert.NoError(t, err)
 
-	// Assemble Holder
-	signedProofRequest := CompositeProofRequestInstanceChallenge{
+	suite, err := proof.SignatureSuites().GetSuite(proof.WorkEdSignatureType, proof.V2)
+	assert.NoError(t, err)
+
+	signed := CompositeProofRequestInstanceChallenge{
 		UnsignedCompositeProofRequestInstanceChallenge: unsigned,
-		Proof: *proof,
 	}
+	err = suite.Sign(&signed, signer)
+	assert.NoError(t, err)
+
 	holder := &ProofRequestHolder{
-		SignedProofRequest:    signedProofRequest,
+		SignedProofRequest:    signed,
 		ProofResponseElements: testProofRequestHolder.ProofResponseElements,
 	}
 

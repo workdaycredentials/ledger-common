@@ -1,10 +1,8 @@
 package credential
 
 import (
-	"context"
 	"crypto/rand"
-	"encoding/base64"
-	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -16,167 +14,100 @@ import (
 
 	"github.com/workdaycredentials/ledger-common/did"
 	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util/canonical"
 )
 
 func TestCredentialBuilder_BuildCredential(t *testing.T) {
-	// setup
-	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
-	require.NoError(t, err)
+	now := time.Now()
 
-	credID, issuerDID, schemaID := uuid.New().String(), uuid.New().String(), uuid.New().String()
-	metadata := NewMetadataWithTimestamp(credID, issuerDID, schemaID, time.Now())
+	inputs := []struct{
+		// The type of signature to be used in the proof.
+		SignatureType proof.SignatureType
+		// We've always used Ed25519 keys, but we've called them by a variety of names.
+		KeyType       proof.KeyType
+		// Set to zero time for no expiration.
+		Expiry        time.Time
+	}{
+		// Ed25519
+		{SignatureType: proof.Ed25519SignatureType, KeyType: proof.Ed25519KeyType, Expiry: time.Time{}},
+		{SignatureType: proof.Ed25519SignatureType, KeyType: proof.Ed25519KeyType, Expiry: now.Add(10 * time.Second)},
+		// WorkEd25519
+		{SignatureType: proof.WorkEdSignatureType, KeyType: proof.WorkEdKeyType, Expiry: time.Time{}},
+		{SignatureType: proof.WorkEdSignatureType, KeyType: proof.WorkEdKeyType, Expiry: now.Add(10 * time.Second)},
+		// JCSEd25519
+		{SignatureType: proof.JCSEdSignatureType, KeyType: proof.Ed25519KeyType, Expiry: time.Time{}},
+		{SignatureType: proof.JCSEdSignatureType, KeyType: proof.Ed25519KeyType, Expiry: now.Add(10 * time.Second)},
+	}
 
-	t.Run("happy path with work ed", func(t *testing.T) {
-		builder := Builder{
-			SubjectDID: uuid.New().String(),
-			Data: map[string]interface{}{
-				"pet": "fido",
-			},
-			Metadata: &metadata,
-			KeyRef:   did.InitialKey,
-			Signer:   proof.WorkEd25519Signer{KeyID: did.InitialKey, PrivKey: privKey},
+	withOrWithout := func (v bool) string {
+		if v {
+			return "with"
 		}
+		return "without"
+	}
 
-		// test
-		cred, err := builder.BuildCredential(context.Background())
-		require.NoError(t, err)
-		require.NotNil(t, cred)
+	for _, input := range inputs {
+		name := fmt.Sprintf("%s %s expiry", input.SignatureType, withOrWithout(input.Expiry.IsZero()))
+		t.Run(name, func(t *testing.T) {
+			pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+			require.NoError(t, err)
 
-		// verify
-		assert.Equal(t, metadata, cred.Metadata)
+			credID, issuerDID, schemaID := uuid.New().String(), uuid.New().String(), uuid.New().String()
 
-		expectedClaims := map[string]interface{}{
-			SubjectIDAttribute: builder.SubjectDID,
-			"pet":              "fido",
-		}
-		assert.Equal(t, expectedClaims, cred.CredentialSubject)
-		assert.NoError(t, VerifyClaim(cred, SubjectIDAttribute, pubKey))
-		assert.NoError(t, VerifyClaim(cred, "pet", pubKey))
+			var metadata Metadata
+			if input.Expiry.IsZero() {
+				metadata = NewMetadataWithTimestamp(credID, issuerDID, schemaID, now)
+			} else {
+				metadata = NewMetadataWithTimestampAndExpiry(credID, issuerDID, schemaID, now, input.Expiry)
+			}
 
-		assert.NoError(t, verifyClaimUsingSignatureSuite(cred, SubjectIDAttribute, pubKey))
-		assert.NoError(t, verifyClaimUsingSignatureSuite(cred, "pet", pubKey))
+			id := uuid.New().String()
+			signer, err := proof.NewEd25519Signer(privKey, did.GenerateKeyID(issuerDID, did.InitialKey))
+			require.NoError(t, err)
 
-		encodedCred, err := canonical.Marshal(cred.UnsignedVerifiableCredential)
-		require.NoError(t, err)
-		encodedCredBase64 := base64.StdEncoding.EncodeToString(encodedCred)
-		assert.NoError(t, proof.VerifyWorkEd25519Proof(pubKey, *cred.Proof, []byte(encodedCredBase64)))
-		assert.NoError(t, verifyCredUsingSignatureSuite(cred, pubKey))
-	})
+			builder := Builder{
+				SubjectDID: id,
+				Data: map[string]interface{}{
+					"pet": "fido",
+				},
+				Metadata:      &metadata,
+				Signer:        signer,
+				SignatureType: input.SignatureType,
+			}
 
-	t.Run("without optional expiry credential", func(t *testing.T) {
-		builderNoExp := Builder{
-			SubjectDID: uuid.New().String(),
-			Data: map[string]interface{}{
-				"pet": "fido",
-			},
-			Metadata:   &metadata,
-			KeyRef:     "key-1",
-			Signer: proof.JCSEd25519Signer{PrivKey: privKey},
-		}
+			cred, err := builder.Build()
+			require.NoError(t, err)
+			require.NotNil(t, cred)
+			assert.Equal(t, metadata, cred.Metadata)
+			assert.Equal(t, input.SignatureType, cred.Proof.Type)
 
-		// test
-		cred, err := builderNoExp.BuildCredential(context.Background())
-		require.NoError(t, err)
-		require.NotNil(t, cred)
+			expectedClaims := map[string]interface{}{
+				SubjectIDAttribute: builder.SubjectDID,
+				"pet":              "fido",
+			}
+			assert.Equal(t, expectedClaims, cred.CredentialSubject)
 
-		// verify
-		assert.Equal(t, metadata, cred.Metadata)
-		assert.Equal(t, "", cred.ExpirationDate)
-		credBytes, _ := json.Marshal(cred)
-		assert.NotContains(t, string(credBytes), "expirationDate")
-	})
+			for k, _ := range expectedClaims {
+				require.NotNil(t, cred.ClaimProofs[k])
+				assert.Equal(t, input.SignatureType, cred.ClaimProofs[k].Type)
+			}
 
-	t.Run("with optional expiry credential", func(t *testing.T) {
-		expiryDate := time.Now().Add(time.Hour * time.Duration(1))
-		metadataWithExp := NewMetadataWithTimestampAndExpiry(credID, issuerDID, schemaID, time.Now(), expiryDate)
-		builderNoExp := Builder{
-			SubjectDID: uuid.New().String(),
-			Data: map[string]interface{}{
-				"pet": "fido",
-			},
-			Metadata:   &metadataWithExp,
-			KeyRef:     "key-1",
-			Signer: proof.JCSEd25519Signer{PrivKey: privKey},
-		}
+			assert.NoError(t, VerifyClaim(cred, SubjectIDAttribute, pubKey))
+			assert.NoError(t, VerifyClaim(cred, "pet", pubKey))
+			assert.EqualError(t, VerifyClaim(cred, "missing", pubKey), `missing claim proof for attribute "missing"`)
 
-		// test
-		cred, err := builderNoExp.BuildCredential(context.Background())
-		require.NoError(t, err)
-		require.NotNil(t, cred)
+			suite, err := proof.SignatureSuites().GetSuiteForCredentialsProof(cred.Proof)
+			assert.NoError(t, err)
+			assert.Equal(t, input.SignatureType, suite.Type())
 
-		// verify
-		assert.Equal(t, metadataWithExp, cred.Metadata)
-		expectedExp := expiryDate.Format(time.RFC3339)
-		assert.Equal(t, expectedExp, cred.ExpirationDate)
-		credBytes, _ := json.Marshal(cred)
-		assert.Contains(t, string(credBytes), `expirationDate":"`+expectedExp)
-	})
-
-	t.Run("happy path with jcs", func(t *testing.T) {
-		builder := Builder{
-			SubjectDID: uuid.New().String(),
-			Data: map[string]interface{}{
-				"pet": "fido",
-			},
-			Metadata: &metadata,
-			KeyRef:   did.InitialKey,
-			Signer:   proof.JCSEd25519Signer{KeyID: did.InitialKey, PrivKey: privKey},
-		}
-
-		// test
-		cred, err := builder.BuildCredential(context.Background())
-		require.NoError(t, err)
-		require.NotNil(t, cred)
-
-		// verify
-		assert.Equal(t, metadata, cred.Metadata)
-
-		expectedClaims := map[string]interface{}{
-			SubjectIDAttribute: builder.SubjectDID,
-			"pet":              "fido",
-		}
-		assert.Equal(t, expectedClaims, cred.CredentialSubject)
-		assert.NoError(t, VerifyClaim(cred, SubjectIDAttribute, pubKey))
-		assert.NoError(t, VerifyClaim(cred, "pet", pubKey))
-
-		assert.NoError(t, verifyClaimUsingSignatureSuite(cred, SubjectIDAttribute, pubKey))
-		assert.NoError(t, verifyClaimUsingSignatureSuite(cred, "pet", pubKey))
-
-		assert.NoError(t, proof.VerifyJCSEd25519Proof(cred, proof.JCSEd25519Verifier, pubKey))
-		assert.NoError(t, verifyCredUsingSignatureSuite(cred, pubKey))
-	})
+			verifier := &proof.Ed25519Verifier{PubKey: pubKey}
+			assert.NoError(t, suite.Verify(cred, verifier))
+		})
+	}
 
 	t.Run("required fields", func(t *testing.T) {
-		_, err := Builder{}.BuildCredential(context.Background())
+		_, err := Builder{}.Build()
 		validationErrs, isValidationErrs := err.(validator.ValidationErrors)
 		require.True(t, isValidationErrs)
 		assert.Len(t, validationErrs, 4)
 	})
-}
-
-func verifyClaimUsingSignatureSuite(cred *VerifiableCredential, attribute string, pubKey ed25519.PublicKey) error {
-	claimProof := cred.ClaimProofs[attribute]
-	claim := &VerifiableCredential{
-		UnsignedVerifiableCredential: UnsignedVerifiableCredential{
-			Metadata:          cred.Metadata,
-			CredentialSubject: map[string]interface{}{attribute: cred.CredentialSubject[attribute]},
-		},
-		Proof: &claimProof,
-	}
-	verifier := &proof.Ed25519Verifier{PubKey: pubKey}
-	suite, err := proof.SignatureSuites().GetSuiteForCredentialProof(&claimProof)
-	if err == nil {
-		return suite.Verify(claim, verifier)
-	}
-	return err
-}
-
-func verifyCredUsingSignatureSuite(cred *VerifiableCredential, pubKey ed25519.PublicKey) error {
-	verifier := &proof.Ed25519Verifier{PubKey: pubKey}
-	suite, err := proof.SignatureSuites().GetSuiteForCredentialProof(cred.GetProof())
-	if err == nil {
-		return suite.Verify(cred, verifier)
-	}
-	return err
 }

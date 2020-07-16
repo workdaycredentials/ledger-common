@@ -42,5 +42,5 @@ func TestGetSchemasOrPanic(t *testing.T) {
 }
 
 func TestGetSchemasOrPanic_BogusSchema(t *testing.T) {
-	assert.Panics(t, func () { GetSchemasOrPanic("bogus")})
+	assert.Panics(t, func() { GetSchemasOrPanic("bogus") })
 }

@@ -6,14 +6,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/workdaycredentials/ledger-common/credential"
 	"github.com/workdaycredentials/ledger-common/proof"
 	"github.com/workdaycredentials/ledger-common/util"
-	"github.com/workdaycredentials/ledger-common/util/canonical"
 )
 
 func TestCreationOfPresentationFromBase64EncodedCredential(t *testing.T) {
@@ -30,11 +28,14 @@ func TestCreationOfPresentationFromBase64EncodedCredential(t *testing.T) {
 func TestCreationOfPresentationFromCredentialV1(t *testing.T) {
 	id := uuid.New().String()
 	nowUTC := time.Now().UTC()
-	presentation, err := GeneratePresentationFromVC(signedV1CredentialOldType.UnsignedVerifiableCredential, "id:work:PDNabnJyLVCpevvaGrk1LP#key-1", holderSigningPrivKey, id)
+	signer, err := proof.NewEd25519Signer(holderSigningPrivKey, "id:work:PDNabnJyLVCpevvaGrk1LP#key-1")
+	assert.NoError(t, err)
+
+	presentation, err := GeneratePresentationFromVC(signedV1CredentialOldType.UnsignedVerifiableCredential, signer, proof.WorkEdSignatureType, id)
 	assert.NoError(t, err)
 	verifyPresentationV1Cred(t, *presentation, id, nowUTC.Format(time.RFC3339))
 
-	presentation, err = GeneratePresentationFromVC(signedV1Credential.UnsignedVerifiableCredential, "id:work:PDNabnJyLVCpevvaGrk1LP#key-1", holderSigningPrivKey, id)
+	presentation, err = GeneratePresentationFromVC(signedV1Credential.UnsignedVerifiableCredential, signer, proof.WorkEdSignatureType, id)
 	assert.NoError(t, err)
 	verifyPresentationV1Cred(t, *presentation, id, nowUTC.Format(time.RFC3339))
 }
@@ -43,13 +44,18 @@ func verifyPresentationV1Cred(t *testing.T, presentation Presentation, id string
 	assert.NotNil(t, presentation)
 	assert.Equal(t, id, presentation.ID)
 	assert.Equal(t, []string{CredentialsLDContext}, presentation.Context)
-	assert.Equal(t, []string{LDType}, presentation.Type)
+	assert.Equal(t, []string{LDType, util.ProofResponseTypeReference_v1_0}, presentation.Type)
 	startTime, _ := time.Parse(time.RFC3339, startTimeRFC3339)
 	presentationTime, _ := time.Parse(time.RFC3339, presentation.Created)
 	now := time.Now().UTC()
 	assert.True(t, presentationTime.After(startTime) || presentationTime.Equal(startTime))
 	assert.True(t, presentationTime.Before(now))
-	verifyProof(t, presentation)
+
+	// verify
+	verifier := &proof.Ed25519Verifier{PubKey: holderPublicKey}
+	suite, err := proof.SignatureSuites().GetSuiteForProof(presentation.GetProof())
+	assert.NoError(t, err)
+	assert.NoError(t, suite.Verify(&presentation, verifier))
 
 	assert.Len(t, presentation.Credentials, 1)
 	v1NameCred := presentation.Credentials[0].UnsignedVerifiableCredential
@@ -88,20 +94,10 @@ func verifyPresentationV1Cred(t *testing.T, presentation Presentation, id string
 	}
 }
 
-func verifyProof(t *testing.T, presentation Presentation) {
-	unsignedPresentation := presentation.UnsignedPresentation
-	presentationBytes, _ := canonical.Marshal(unsignedPresentation)
-	p := presentation.Proof[0]
-	unsignedBytes := util.AddNonceToDoc(presentationBytes, p.Nonce)
-
-	sig, _ := base58.Decode(p.SignatureValue)
-	verify := ed25519.Verify(holderSigningPrivKey.Public().(ed25519.PublicKey), unsignedBytes, sig)
-	assert.True(t, verify)
-}
-
 var (
 	keySeed              = []byte("12345678901234567890123456789012")
 	holderSigningPrivKey = ed25519.NewKeyFromSeed(keySeed)
+	holderPublicKey      = holderSigningPrivKey.Public().(ed25519.PublicKey)
 	signedV0Credential   = `{
     "@context": [
         "https://w3.org/2018/credentials/v1",

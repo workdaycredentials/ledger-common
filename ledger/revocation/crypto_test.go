@@ -18,11 +18,14 @@ const (
 // the result.
 func TestBlindRevocation(t *testing.T) {
 	// Create an issuer
-	didDoc, privKey := did.GenerateDIDDoc(proof.WorkEdSignatureType)
+	didDoc, privKey := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
 	keyRef := didDoc.PublicKey[0].ID
 
 	// Create the unblinded revocation
-	revocation, err := ledger.GenerateLedgerRevocation(CredentialID, didDoc.ID, proof.WorkEd25519Signer{PrivKey: privKey}, keyRef)
+	signer, err := proof.NewEd25519Signer(privKey, keyRef)
+	assert.NoError(t, err)
+
+	revocation, err := ledger.GenerateLedgerRevocation(CredentialID, didDoc.ID, signer, proof.WorkEdSignatureType)
 	assert.NoError(t, err)
 
 	// Blind
@@ -43,10 +46,13 @@ var (
 )
 
 func BenchmarkBlindRevocation(b *testing.B) {
-	issuer, key := did.GenerateDIDDoc(proof.WorkEdSignatureType)
+	issuer, key := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
 	keyRef := issuer.PublicKey[0].ID
 
-	revocation, err := ledger.GenerateLedgerRevocation(CredentialID, issuer.ID, proof.WorkEd25519Signer{PrivKey: key}, keyRef)
+	signer, err := proof.NewEd25519Signer(key, keyRef)
+	assert.NoError(b, err)
+
+	revocation, err := ledger.GenerateLedgerRevocation(CredentialID, issuer.ID, signer, proof.WorkEdSignatureType)
 	assert.NoError(b, err)
 
 	var revocationBytes []byte
@@ -57,10 +63,13 @@ func BenchmarkBlindRevocation(b *testing.B) {
 }
 
 func BenchmarkUnblindRevocation(b *testing.B) {
-	issuer, key := did.GenerateDIDDoc(proof.WorkEdSignatureType)
+	issuer, key := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 	keyRef := issuer.PublicKey[0].ID
 
-	revocation, err := ledger.GenerateLedgerRevocation(CredentialID, issuer.ID, proof.WorkEd25519Signer{PrivKey: key}, keyRef)
+	signer, err := proof.NewEd25519Signer(key, keyRef)
+	assert.NoError(b, err)
+
+	revocation, err := ledger.GenerateLedgerRevocation(CredentialID, issuer.ID, signer, proof.WorkEdSignatureType)
 	assert.NoError(b, err)
 
 	blinded, err := BlindRevocation(CredentialID, revocation)

@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 
 	"github.com/workdaycredentials/ledger-common/ledger"
+	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas"
 )
 
 type VersionInfo struct {
@@ -98,9 +98,9 @@ func InRangeInclusive(version string, lower string, upper string) (bool, error) 
 // Version logic
 
 // Store all currently supported versions in reverse priority (ascending) order
-var versions = [...]VersionInfo{Version0, Version1} //nolint:gochecknoglobals
+var versions = [...]VersionInfo{Version0, Version1}
 
-var Version0 = VersionInfo{ //nolint:gochecknoglobals
+var Version0 = VersionInfo{
 	Version:         "0.0",
 	ValidRangeLower: "0.0",
 	ValidRangeUpper: "0.0",
@@ -108,7 +108,7 @@ var Version0 = VersionInfo{ //nolint:gochecknoglobals
 	Validator:       V0,
 }
 
-var Version1 = VersionInfo{ //nolint:gochecknoglobals
+var Version1 = VersionInfo{
 	Version:         "1.0",
 	ValidRangeLower: "1.0",
 	ValidRangeUpper: "1.0",
@@ -117,7 +117,7 @@ var Version1 = VersionInfo{ //nolint:gochecknoglobals
 }
 
 // Find the most recently created validator the supports the provided version
-func FindValidatorForVersion(ctx context.Context, version string) (Validator, error) {
+func FindValidatorForVersion(version string) (Validator, error) {
 	for i := len(versions) - 1; i >= 0; i-- {
 		inRange, err := InRangeInclusive(version, versions[i].ValidRangeLower, versions[i].ValidRangeUpper)
 		if err != nil {
@@ -131,7 +131,7 @@ func FindValidatorForVersion(ctx context.Context, version string) (Validator, er
 	return InValidator, fmt.Errorf("could not find validator for version<%s>", version)
 }
 
-func ValidateLedgerSchemaV1(ctx context.Context, document interface{}) error {
+func ValidateLedgerSchemaV1(document interface{}) error {
 	// Make sure we have the right type for this version
 	documentTyped, ok := document.(ledger.Schema)
 	if !ok {
@@ -144,7 +144,11 @@ func ValidateLedgerSchemaV1(ctx context.Context, document interface{}) error {
 
 	// Do the validation
 	// Validate meta schema
-	metadataLoader := gojsonschema.NewStringLoader(ledger.MetadataSchema)
+	schemaString, err := schemas.GetJSONFile(schemas.LedgerMetadataSchema)
+	if err != nil {
+		return err
+	}
+	metadataLoader := gojsonschema.NewStringLoader(schemaString)
 	metadataJSONBytes, err := json.Marshal(&documentTyped.Metadata)
 	if err != nil {
 		logrus.WithError(err).Error("Unable to marshal meta s")

@@ -19,13 +19,13 @@ import (
 // DID //
 
 func TestValidateDIDDoc(t *testing.T) {
-	ledgerDIDDoc, _ := GenerateLedgerDIDDoc(proof.WorkEdSignatureType)
+	ledgerDIDDoc, _ := GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
 	provider := TestDIDDocProvider{map[string]*DIDDoc{ledgerDIDDoc.ID: ledgerDIDDoc}}
 	assert.NoError(t, ledgerDIDDoc.Validate(context.Background(), provider.GetDIDDoc))
 }
 
 func TestValidateDeactivatedDIDDoc(t *testing.T) {
-	ledgerDIDDoc, _ := GenerateLedgerDIDDoc(proof.WorkEdSignatureType)
+	ledgerDIDDoc, _ := GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
 	assert.Error(t, ledgerDIDDoc.ValidateDeactivated())
 
 	ledgerDIDDoc.PublicKey = nil
@@ -33,7 +33,7 @@ func TestValidateDeactivatedDIDDoc(t *testing.T) {
 }
 
 func TestValidateDIDDocStatic(t *testing.T) {
-	ledgerDIDDoc, _ := GenerateLedgerDIDDoc(proof.WorkEdSignatureType)
+	ledgerDIDDoc, _ := GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
 	assert.NoError(t, ledgerDIDDoc.ValidateStatic())
 }
 
@@ -85,8 +85,11 @@ func TestValidateDIDMetadata(t *testing.T) {
 }
 
 func TestValidateDIDDocProof(t *testing.T) {
-	ledgerDIDDoc, _ := GenerateLedgerDIDDoc(proof.WorkEdSignatureType)
+	ledgerDIDDoc, _ := GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
 	assert.NoError(t, ledgerDIDDoc.ValidateProof())
+
+	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.ID: didDoc}}
+	assert.NoError(t, didDoc.Validate(context.Background(), provider.GetDIDDoc))
 
 	// set the signature to a random value
 	ledgerDIDDoc.DIDDoc.Proof.SignatureValue = "4Y4dfA7qXvSBa9YETYSkAQdQEsCrz29HMAPjbedF9iJMEKCXWcsqkuad2Rz2SqnfdGMbnUvVyDyESPBVQh8WHRx8"
@@ -138,8 +141,8 @@ func TestValidateDIDDocProofSecp256k1(t *testing.T) {
 }
 
 func TestValidateDIDUniqueness(t *testing.T) {
-	doc1, _ := GenerateLedgerDIDDoc(proof.WorkEdSignatureType)
-	doc2, _ := GenerateLedgerDIDDoc(proof.WorkEdSignatureType)
+	doc1, _ := GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
+	doc2, _ := GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
 	provider := TestDIDDocProvider{map[string]*DIDDoc{doc2.ID: doc2}}
 
 	// no existing record
@@ -180,9 +183,11 @@ const (
 
 var (
 	ctx             = context.Background()
-	didDoc, privKey = GenerateLedgerDIDDoc(proof.WorkEdSignatureType)
+	keyType         = proof.WorkEdKeyType
+	didDoc, privKey = GenerateLedgerDIDDoc(keyType, proof.WorkEdSignatureType)
 	keyRef          = didDoc.PublicKey[0].ID
-	r, _            = GenerateLedgerRevocation(CredentialID, didDoc.ID, proof.WorkEd25519Signer{PrivKey: privKey}, keyRef)
+	signer, _       = proof.NewEd25519Signer(privKey, keyRef)
+	r, _            = GenerateLedgerRevocation(CredentialID, didDoc.ID, signer, proof.WorkEdSignatureType)
 )
 
 func TestValidateRevocation(t *testing.T) {
@@ -195,11 +200,13 @@ func TestValidateRevocation(t *testing.T) {
 }
 
 func TestValidateRevocations(t *testing.T) {
-	// rev 2
-	didDoc2, privKey2 := GenerateLedgerDIDDoc(proof.WorkEdSignatureType)
+	didDoc2, privKey2 := GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
 	keyRef2 := didDoc2.PublicKey[0].ID
 
-	revocation2, err := GenerateLedgerRevocation(CredentialID2, didDoc2.ID, proof.WorkEd25519Signer{PrivKey: privKey2}, keyRef2)
+	signer, err := proof.NewEd25519Signer(privKey2, keyRef2)
+	assert.NoError(t, err)
+
+	revocation2, err := GenerateLedgerRevocation(CredentialID2, didDoc2.ID, signer, proof.WorkEdSignatureType)
 	assert.NoError(t, err)
 
 	provider := RevTestProvider{
@@ -252,7 +259,7 @@ func Test_validateRevocationProof(t *testing.T) {
 
 	// make it bad
 	newRevocation.Proof.Nonce = uuid.New().String()
-	assert.NoError(t, newRevocation.ValidateProof(ctx, ledgerProvider.DIDDocProvider))
+	assert.Error(t, newRevocation.ValidateProof(ctx, ledgerProvider.DIDDocProvider))
 }
 
 func Test_validateRevocationUniqueness(t *testing.T) {
@@ -432,7 +439,11 @@ func generateSchema(didDoc did.DIDDoc, privKey ed25519.PrivateKey) *Schema {
 	if err := json.Unmarshal([]byte(testSchema), &s); err != nil {
 		panic(err)
 	}
-	schema, err := GenerateLedgerSchema("Name", didDoc.ID, didDoc.PublicKey[0].ID, proof.WorkEd25519Signer{PrivKey: privKey}, s)
+	signer, err := proof.NewEd25519Signer(privKey, didDoc.PublicKey[0].ID)
+	if err != nil {
+		panic(err)
+	}
+	schema, err := GenerateLedgerSchema("Name", didDoc.ID, signer, proof.WorkEdSignatureType, s)
 	if err != nil {
 		panic(err)
 	}

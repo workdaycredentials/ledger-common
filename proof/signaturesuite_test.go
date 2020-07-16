@@ -3,6 +3,7 @@ package proof
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,12 +54,12 @@ func TestSignatureSuiteFactory_GetSuiteForProof(t *testing.T) {
 	for _, input := range inputs {
 		name := fmt.Sprintf("%s-%s", input.sigType, input.keyRefType)
 		t.Run(name, func(t *testing.T) {
-			proofJson := fmt.Sprintf(proofTemplate, input.keyRefType, input.sigType)
+			proofJSON := fmt.Sprintf(proofTemplate, input.keyRefType, input.sigType)
 			var p Proof
-			assert.NoError(t, json.Unmarshal([]byte(proofJson), &p))
+			assert.NoError(t, json.Unmarshal([]byte(proofJSON), &p))
 			suite, err := SignatureSuites().GetSuiteForProof(&p)
-			if input.err {
-				assert.EqualError(t, err, "unsupported signature type")
+			if err != nil {
+				assert.True(t, strings.Contains(err.Error(), "unsupported signature type"))
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, input.expectedSuite, suite)
@@ -66,6 +67,12 @@ func TestSignatureSuiteFactory_GetSuiteForProof(t *testing.T) {
 		})
 	}
 }
+
+var (
+	seed    = []byte("12345678901234567890123456789012")
+	privKey = ed25519.NewKeyFromSeed(seed)
+	pubKey  = privKey.Public().(ed25519.PublicKey)
+)
 
 func TestSignAndVerify(t *testing.T) {
 	js := `{
@@ -76,14 +83,10 @@ func TestSignAndVerify(t *testing.T) {
 	privKey := ed25519.NewKeyFromSeed(seed)
 	pubKey := privKey.Public().(ed25519.PublicKey)
 
-	verifier := &Ed25519Verifier{
-		PubKey: pubKey,
-	}
+	signer, err := NewEd25519Signer(privKey, "key-1")
+	assert.NoError(t, err)
 
-	signer := &Ed25519Signer{
-		KeyID:      "key-1",
-		PrivateKey: privKey,
-	}
+	verifier := &Ed25519Verifier{PubKey: pubKey}
 
 	suites := map[string]SignatureSuite{
 		"JCS":       jcsEd25519SignatureSuite,
@@ -111,10 +114,7 @@ func TestSignAndVerify(t *testing.T) {
 func TestVerify(t *testing.T) {
 	privKey := ed25519.NewKeyFromSeed(seed)
 	pubKey := privKey.Public().(ed25519.PublicKey)
-
-	verifier := &Ed25519Verifier{
-		PubKey: pubKey,
-	}
+	verifier := &Ed25519Verifier{PubKey: pubKey}
 
 	inputs := map[string]string{
 		"JCS": `{
@@ -156,7 +156,7 @@ func TestVerify(t *testing.T) {
 			var provable provableTestData
 			assert.NoError(t, json.Unmarshal([]byte(input), &provable))
 
-			suite, err := SignatureSuites().GetSuiteForProof(provable.Proof)
+			suite, err := SignatureSuites().GetSuiteForProof(provable.GetProof())
 			assert.NoError(t, err)
 			assert.NoError(t, suite.Verify(&provable, verifier))
 
@@ -164,4 +164,80 @@ func TestVerify(t *testing.T) {
 			assert.EqualError(t, suite.Verify(&provable, verifier), "signature verification failed")
 		})
 	}
+}
+
+type workEd25519Signer struct {
+	Ed25519Signer
+}
+
+func (s *workEd25519Signer) Type() KeyType                      {
+	return WorkEdKeyType
+}
+
+type workEd25519Verifier struct {
+	Ed25519Verifier
+}
+
+func (v *workEd25519Verifier) Type() KeyType {
+	return WorkEdKeyType
+}
+
+func TestCreateAndVerifyJCSEd25519Proof(t *testing.T) {
+	testSigner, err := NewEd25519Signer(privKey, "key-ref")
+	assert.NoError(t, err)
+	testVerifier := &Ed25519Verifier{PubKey: pubKey}
+
+	t.Run("Happy path sign and verify", func(t *testing.T) {
+		testData := GenericProvable{JSONData: "testData"}
+
+		suite, err := SignatureSuites().GetSuite(JCSEdSignatureType, V2)
+		assert.NoError(t, err)
+		// Create and set proof
+		err = suite.Sign(&testData, testSigner)
+		assert.NoError(t, err)
+
+		err = suite.Verify(&testData, testVerifier)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Bad pub key - can't verify", func(t *testing.T) {
+		testData := GenericProvable{JSONData: "testData"}
+
+		// Create and set proof
+		suite, err := SignatureSuites().GetSuite(JCSEdSignatureType, V2)
+		assert.NoError(t, err)
+		// Create and set proof
+		err = suite.Sign(&testData, testSigner)
+		assert.NoError(t, err)
+
+		badPubKey := make([]byte, ed25519.PublicKeySize)
+		testVerifier := &Ed25519Verifier{PubKey: badPubKey}
+		err = suite.Verify(&testData, testVerifier)
+		assert.Error(t, err)
+	})
+
+	t.Run("Non Ed25519 Signer", func(t *testing.T) {
+		testData := GenericProvable{JSONData: "testData"}
+
+		badSigner := &workEd25519Signer{Ed25519Signer: Ed25519Signer{KeyID: "key-ref", PrivateKey: privKey}}
+		suite, err := SignatureSuites().GetSuite(JCSEdSignatureType, V2)
+		assert.NoError(t, err)
+
+		err = suite.Sign(&testData, badSigner)
+		assert.Error(t, err)
+	})
+
+	t.Run("Non Ed25519 Verifier", func(t *testing.T) {
+		testData := GenericProvable{JSONData: "testData"}
+
+		suite, err := SignatureSuites().GetSuite(JCSEdSignatureType, V2)
+		assert.NoError(t, err)
+
+		err = suite.Sign(&testData, testSigner)
+		assert.NoError(t, err)
+
+		badVerifier := &workEd25519Verifier{Ed25519Verifier: Ed25519Verifier{PubKey: pubKey}}
+		err = suite.Verify(&testData, badVerifier)
+		assert.NoError(t, err)
+	})
 }

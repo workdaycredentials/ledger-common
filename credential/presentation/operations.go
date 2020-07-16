@@ -6,7 +6,7 @@ import (
 )
 
 // Binary string operators
-var stringComparisons = map[string]func(string, string) bool{ //nolint:gochecknoglobals
+var stringComparisons = map[string]func(string, string) bool{
 	"equals":         func(a, b string) bool { return a == b },
 	"equalsFoldCase": strings.EqualFold,
 	"notEquals":      func(a, b string) bool { return a != b },
@@ -17,7 +17,7 @@ var stringComparisons = map[string]func(string, string) bool{ //nolint:gocheckno
 }
 
 // Binary number operators
-var numberComparisons = map[string]func(float64, float64) bool{ //nolint:gochecknoglobals
+var numberComparisons = map[string]func(float64, float64) bool{
 	"equals":               func(a, b float64) bool { return a == b },
 	"notEquals":            func(a, b float64) bool { return a != b },
 	"lessThan":             func(a, b float64) bool { return a < b },
@@ -41,8 +41,8 @@ so long as conversion is also supported by the golang lib
 var dateComparisons = map[string]func(*time.Time, *time.Time) bool{ //nolint:gochecknoglobals
 	"equals":               func(a, b *time.Time) bool { return a.Equal(*b) },
 	"notEquals":            func(a, b *time.Time) bool { return !a.Equal(*b) },
-	"lessThan":             func(a, b *time.Time) bool { return b.Before(*a) },
-	"greaterThan":          func(a, b *time.Time) bool { return b.After(*a) },
-	"lessThanOrEqualTo":    func(a, b *time.Time) bool { return a.Equal(*b) || b.Before(*a) },
-	"greaterThanOrEqualTo": func(a, b *time.Time) bool { return a.Equal(*b) || b.After(*a) },
+	"lessThan":             func(a, b *time.Time) bool { return a.Before(*b) },
+	"greaterThan":          func(a, b *time.Time) bool { return a.After(*b) },
+	"lessThanOrEqualTo":    func(a, b *time.Time) bool { return a.Equal(*b) || a.Before(*b) },
+	"greaterThanOrEqualTo": func(a, b *time.Time) bool { return a.Equal(*b) || a.After(*b) },
 }

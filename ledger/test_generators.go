@@ -11,46 +11,39 @@ import (
 	"github.com/workdaycredentials/ledger-common/util"
 )
 
-func GenerateLedgerDIDDoc(signatureType proof.SignatureType) (*DIDDoc, ed25519.PrivateKey) {
-	pk, sk, err := ed25519.GenerateKey(nil)
+func GenerateLedgerDIDDoc(keyType proof.KeyType, signatureType proof.SignatureType) (*DIDDoc, ed25519.PrivateKey) {
+	publicKey, privateKey, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		panic(err)
 	}
 
-	id := did.GenerateDID(pk)
-	signingKeyRef := id + "#" + did.InitialKey
+	id := did.GenerateDID(publicKey)
+	keyID := did.GenerateKeyID(id, did.InitialKey)
+	signingKeyRef := keyID
 	pubKeys := make(map[string]ed25519.PublicKey)
-	pubKeys[did.InitialKey] = pk
+	pubKeys[did.InitialKey] = publicKey
 
-	var signer proof.Signer
-	switch signatureType {
-	case proof.JCSEdSignatureType:
-		signer = proof.JCSEd25519Signer{PrivKey: sk}
-
-	case proof.Ed25519SignatureType:
-		fallthrough
-
-	case proof.WorkEdSignatureType:
-		signer = proof.WorkEd25519Signer{PrivKey: sk}
-	default:
-		logrus.Errorf("unsupported signature type: %s", signatureType)
+	if keyType == proof.EcdsaSecp256k1KeyType {
+		logrus.Errorf("Unsupported type: %s", proof.EcdsaSecp256k1KeyType)
 		return nil, nil
 	}
+	signer, err := proof.NewEd25519Signer(privateKey, keyID)
 
 	ledgerDIDDoc, err := GenerateDIDDocInput{
 		DID:                  id,
 		FullyQualifiedKeyRef: signingKeyRef,
 		Signer:               signer,
+		SignatureType:        signatureType,
 		PublicKeys:           pubKeys,
 		Issuer:               id,
 	}.GenerateLedgerDIDDoc()
 	if err != nil {
 		panic(err)
 	}
-	return ledgerDIDDoc, sk
+	return ledgerDIDDoc, privateKey
 }
 
-func GenerateLedgerRevocation(credentialID string, issuer string, signer proof.Signer, keyRef string) (*Revocation, error) {
+func GenerateLedgerRevocation(credentialID string, issuer string, signer proof.Signer, signatureType proof.SignatureType) (*Revocation, error) {
 	timeStamp := time.Now().UTC().Format(time.RFC3339)
 	r := &UnsignedRevocation{
 		ID:           GenerateRevocationKey(issuer, credentialID),
@@ -70,15 +63,17 @@ func GenerateLedgerRevocation(credentialID string, issuer string, signer proof.S
 		UnsignedRevocation: r,
 		Metadata:           metadata,
 	}
-	if err := SignLedgerDocGeneric(signer, ledgerRevocation, keyRef); err != nil {
+	suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
+	if err != nil {
 		return nil, err
 	}
-	return &ledgerRevocation, nil
+	err = suite.Sign(ledgerRevocation, signer)
+	return &ledgerRevocation, err
 }
 
-func GenerateLedgerSchema(name, author, signingKeyRef string, signer proof.Signer, schema map[string]interface{}) (*Schema, error) {
+func GenerateLedgerSchema(name, author string, signer proof.Signer, signatureType proof.SignatureType, schema map[string]interface{}) (*Schema, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
-	s := Schema{
+	ledgerSchema := Schema{
 		Metadata: &Metadata{
 			Type:         util.SchemaTypeReference_v1_0,
 			ModelVersion: util.Version_1_0,
@@ -89,8 +84,10 @@ func GenerateLedgerSchema(name, author, signingKeyRef string, signer proof.Signe
 		},
 		JSONSchema: &JSONSchema{Schema: schema},
 	}
-	if err := SignLedgerDocGeneric(signer, s, signingKeyRef); err != nil {
+	suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
+	if err != nil {
 		return nil, err
 	}
-	return &s, nil
+	err = suite.Sign(ledgerSchema, signer)
+	return &ledgerSchema, nil
 }

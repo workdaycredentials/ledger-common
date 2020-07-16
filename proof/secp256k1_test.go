@@ -16,6 +16,8 @@ const (
 	b64Signature = "MEUCICeE0BmEF/oFBU1zD0oHowDBslrQQDxlTXG84rjBR60BAiEAzYzkalSiCg6p0v72Z3YXWSexEyj4Lo+TbsFsgnxD0J8="
 )
 
+// TODO this test should be deprecated in favor of signature suite validation tests
+
 func TestSignatureVerification(t *testing.T) {
 	t.Run("happy path for signature verification", func(t *testing.T) {
 

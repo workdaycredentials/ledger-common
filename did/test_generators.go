@@ -2,82 +2,59 @@ package did
 
 import (
 	"github.com/mr-tron/base58"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/workdaycredentials/ledger-common/proof"
 )
 
-func GenerateDIDDocWithContext(signerType proof.SignatureType) (*DIDDoc, ed25519.PrivateKey) {
-	pk, sk, _ := ed25519.GenerateKey(nil)
-
-	var signer proof.Signer
-	switch signerType {
-	case proof.JCSEdSignatureType:
-		signer = proof.JCSEd25519Signer{PrivKey: sk}
-
-	case proof.Ed25519SignatureType:
-		fallthrough
-
-	case proof.WorkEdSignatureType:
-		signer = proof.WorkEd25519Signer{PrivKey: sk}
-	default:
-		logrus.Errorf("unsupported signer: %s", signerType)
-		return nil, nil
-	}
-
-	id := GenerateDID(pk)
-	signingKeyRef := id + "#" + InitialKey
+func GenerateDIDDocWithContext(keyType proof.KeyType, signatureType proof.SignatureType) (*DIDDoc, ed25519.PrivateKey) {
+	publicKey, privateKey, _ := ed25519.GenerateKey(nil)
+	id := GenerateDID(publicKey)
+	signingKeyRef := GenerateKeyID(id, InitialKey)
 
 	var didPubKeys = []KeyDef{{
 		ID:              signingKeyRef,
-		Type:            proof.GetCorrespondingKeyType(signer.Type()),
+		Type:            keyType,
 		Controller:      id,
-		PublicKeyBase58: base58.Encode(pk),
+		PublicKeyBase58: base58.Encode(publicKey),
 	}}
 
-	doc := UnsignedDIDDoc{
-		SchemaContext: SchemaContext,
-		ID:            id,
-		PublicKey:     didPubKeys,
+	doc := DIDDoc{
+		UnsignedDIDDoc: UnsignedDIDDoc{
+			SchemaContext: SchemaContext,
+			ID:            id,
+			PublicKey:     didPubKeys,
+		},
 	}
 
-	signedDoc, _ := SignDIDDocGeneric(signer, doc, signingKeyRef)
-	return signedDoc, sk
+	signer, _ := proof.NewEd25519Signer(privateKey, signingKeyRef)
+	suite, _ := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
+	_ = suite.Sign(&doc, signer)
+	return &doc, privateKey
 }
 
-func GenerateDIDDoc(signerType proof.SignatureType) (*DIDDoc, ed25519.PrivateKey) {
-	pk, sk, _ := ed25519.GenerateKey(nil)
+func GenerateDIDDoc(keyType proof.KeyType, signatureType proof.SignatureType) (*DIDDoc, ed25519.PrivateKey) {
+	publicKey, privateKey, _ := ed25519.GenerateKey(nil)
 
-	var signer proof.Signer
-	switch signerType {
-	case proof.JCSEdSignatureType:
-		signer = proof.JCSEd25519Signer{PrivKey: sk}
-
-	case proof.Ed25519SignatureType:
-		fallthrough
-
-	case proof.WorkEdSignatureType:
-		signer = proof.WorkEd25519Signer{PrivKey: sk}
-	default:
-		logrus.Errorf("unsupported signer: %s", signerType)
-		return nil, nil
-	}
-
-	id := GenerateDID(pk)
-	signingKeyRef := id + "#" + InitialKey
+	id := GenerateDID(publicKey)
+	signingKeyRef := GenerateKeyID(id, InitialKey)
 
 	var didPubKeys = []KeyDef{{
 		ID:              signingKeyRef,
-		Type:            proof.GetCorrespondingKeyType(signer.Type()),
+		Type:            keyType,
 		Controller:      id,
-		PublicKeyBase58: base58.Encode(pk),
+		PublicKeyBase58: base58.Encode(publicKey),
 	}}
 
-	doc := UnsignedDIDDoc{
-		ID:        id,
-		PublicKey: didPubKeys,
+	doc := DIDDoc{
+		UnsignedDIDDoc: UnsignedDIDDoc{
+			ID:        id,
+			PublicKey: didPubKeys,
+		},
 	}
-	signedDoc, _ := SignDIDDocGeneric(signer, doc, signingKeyRef)
-	return signedDoc, sk
+
+	signer, _ := proof.NewEd25519Signer(privateKey, signingKeyRef)
+	suite, _ := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
+	_ = suite.Sign(&doc, signer)
+	return &doc, privateKey
 }

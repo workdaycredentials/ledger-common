@@ -148,7 +148,7 @@ func TestConditionOperation_Eval(t *testing.T) {
 		{
 			name: "Metadata Comparison",
 			condition: `{
-	"op": "lessThan",
+	"op": "greaterThan",
 	"credentialValue": { "metadata": "expirationDate" },
 	"comparisonValue": { "variable": "%today%" },
 	"failureMessage": "Must not be expired"
@@ -361,7 +361,7 @@ func TestTimeSpecificConditions(t *testing.T) {
 			conditions: `[{
 	"op": "lessThan",
 	"credentialValue": { "data": "timeOfPurchase" },
-	"comparisonValue": { "constant": "2020-04-24T17:28:21+00:00" },
+	"comparisonValue": { "constant": "2020-04-24T17:28:31+00:00" },
 	"failureMessage": "Timestamps RFC 822, RFC 3339 must match"
 }]`,
 			want:    true,
@@ -375,7 +375,7 @@ func TestTimeSpecificConditions(t *testing.T) {
 	"comparisonValue": { "constant": "2020-04-24T19:28:21+00:00" },
 	"failureMessage": "Timestamps RFC 822, RFC 3339 must match"
 }]`,
-			want:    false,
+			want:    true,
 			wantErr: false,
 		},
 		{
@@ -383,7 +383,7 @@ func TestTimeSpecificConditions(t *testing.T) {
 			conditions: `[{
 	"op": "greaterThan",
 	"credentialValue": { "data": "timeOfPurchase" },
-	"comparisonValue": { "constant": "2020-04-24T19:28:21+00:00" },
+	"comparisonValue": { "constant": "2020-04-24T17:28:21+00:00" },
 	"failureMessage": "Timestamps RFC 822, RFC 3339 must match"
 }]`,
 			want:    true,
@@ -394,10 +394,10 @@ func TestTimeSpecificConditions(t *testing.T) {
 			conditions: `[{
 	"op": "greaterThan",
 	"credentialValue": { "data": "timeOfPurchase" },
-	"comparisonValue": { "constant": "2020-03-24T19:28:21+00:00" },
+	"comparisonValue": { "constant": "2020-03-24T17:28:21+00:00" },
 	"failureMessage": "Timestamps RFC 822, RFC 3339 must match"
 }]`,
-			want:    false,
+			want:    true,
 			wantErr: false,
 		},
 		{
@@ -405,7 +405,7 @@ func TestTimeSpecificConditions(t *testing.T) {
 			conditions: `[{
 	"op": "lessThanOrEqualTo",
 	"credentialValue": { "data": "timeOfPurchase" },
-	"comparisonValue": { "constant": "2020-04-24T16:28:29+00:00" },
+	"comparisonValue": { "constant": "2020-04-24T18:28:29+00:00" },
 	"failureMessage": "Timestamps RFC 822, RFC 3339 must match"
 },
 {
@@ -422,7 +422,7 @@ func TestTimeSpecificConditions(t *testing.T) {
 			conditions: `[{
 	"op": "greaterThanOrEqualTo",
 	"credentialValue": { "data": "timeOfPurchase" },
-	"comparisonValue": { "constant": "2020-04-24T18:28:29+00:00" },
+	"comparisonValue": { "constant": "2020-04-24T16:28:29+00:00" },
 	"failureMessage": "Timestamps RFC 822, RFC 3339 must match"
 },
 {

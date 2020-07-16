@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 func TestEncodeAttributeClaimDataForSigning(t *testing.T) {
@@ -47,23 +49,23 @@ func TestNewMetadataWithTimestamp(t *testing.T) {
 	knownStamp, err := time.Parse(time.RFC3339, "2020-04-29T14:49:25.77922629Z")
 	assert.NoError(t, err)
 	tests := []struct {
-		name    string
-		args    args
-		want    Metadata
+		name string
+		args args
+		want Metadata
 	}{
 		{
-			name:    "Valid",
-			args:    args{
+			name: "Valid",
+			args: args{
 				id:               "id1",
 				issuer:           "issuer1",
 				schema:           "schema1",
 				offeredTimestamp: knownStamp,
 			},
-			want:    Metadata{
+			want: Metadata{
 				ModelVersion: ModelVersionV1,
 				Context:      []string{W3Context},
 				ID:           "id1",
-				Type:         []string{Type},
+				Type:         []string{Type, util.CredentialTypeReference_v1_0},
 				Issuer:       "issuer1",
 				IssuanceDate: knownStamp.Format(time.RFC3339),
 				Schema: Schema{

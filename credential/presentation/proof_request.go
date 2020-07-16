@@ -4,16 +4,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ed25519"
-	"time"
 
 	"github.com/workdaycredentials/ledger-common/credential"
 	"github.com/workdaycredentials/ledger-common/ledger/schema"
 	"github.com/workdaycredentials/ledger-common/proof"
 	"github.com/workdaycredentials/ledger-common/util"
-	"github.com/workdaycredentials/ledger-common/util/canonical"
 )
 
 // CheckVCsMatchCriterion returns an error if the credentials do not satisfy the given criterion.
@@ -111,24 +110,21 @@ func CheckVCMatchesCriterion(criterion Criterion, cred credential.UnsignedVerifi
 	return nil
 }
 
-func GenerateCompositeProofResponse(proofRequest CompositeProofRequestInstanceChallenge, fulfilledCriteria []FulfilledCriterion, signingKeyRef string, signingKey ed25519.PrivateKey) (*CompositeProofResponseSubmission, error) {
-	unsignedProofReq := UnsignedCompositeProofResponseSubmission{
-		ProofReqRespMetadata:   ProofRespMetadata(),
-		ProofRequestInstanceID: proofRequest.ProofRequestInstanceID,
-		FulfilledCriteria:      fulfilledCriteria,
+func GenerateCompositeProofResponse(proofRequest CompositeProofRequestInstanceChallenge, fulfilledCriteria []FulfilledCriterion, signer proof.Signer) (*CompositeProofResponseSubmission, error) {
+	proofReq := CompositeProofResponseSubmission{
+		UnsignedCompositeProofResponseSubmission: UnsignedCompositeProofResponseSubmission{
+			ProofReqRespMetadata:   ProofRespMetadata(),
+			ProofRequestInstanceID: proofRequest.ProofRequestInstanceID,
+			FulfilledCriteria:      fulfilledCriteria,
+		},
 	}
-	proofReqBytes, err := canonical.Marshal(unsignedProofReq)
+
+	suite, err := proof.SignatureSuites().GetSuite(proof.WorkEdSignatureType, proof.V2)
 	if err != nil {
 		return nil, err
 	}
-	presProof, err := proof.CreateWorkEd25519Proof(proofReqBytes, signingKeyRef, signingKey, uuid.New().String())
-	if presProof != nil {
-		return &CompositeProofResponseSubmission{
-			UnsignedCompositeProofResponseSubmission: unsignedProofReq,
-			Proof:                                    []proof.Proof{*presProof},
-		}, err
-	}
-	return nil, err
+	err = suite.Sign(&proofReq, signer)
+	return &proofReq, err
 }
 
 func ProofRespMetadata() ProofReqRespMetadata {
@@ -139,7 +135,7 @@ func ProofRespMetadata() ProofReqRespMetadata {
 	}
 }
 
-func FulfillCriterionForVCs(criterion Criterion, variables map[string]interface{}, submittedV1Credentials []credential.UnsignedVerifiableCredential, signingKeyRef string, signingKey ed25519.PrivateKey) (*FulfilledCriterion, error) {
+func FulfillCriterionForVCs(criterion Criterion, variables map[string]interface{}, submittedV1Credentials []credential.UnsignedVerifiableCredential, signer proof.Signer) (*FulfilledCriterion, error) {
 	var presentations []Presentation
 	if err := CheckVCsMatchCriterion(criterion, submittedV1Credentials, variables); err != nil {
 		return nil, err
@@ -148,7 +144,7 @@ func FulfillCriterionForVCs(criterion Criterion, variables map[string]interface{
 		filteredCred := cred
 		stripUnrequestedAttributesFromCredential(criterion, &filteredCred)
 		uid := uuid.New().String()
-		presentation, err := GeneratePresentationFromVC(filteredCred, signingKeyRef, signingKey, uid)
+		presentation, err := GeneratePresentationFromVC(filteredCred, signer, proof.WorkEdSignatureType, uid)
 		if err != nil {
 			return nil, err
 		}
@@ -213,8 +209,8 @@ func stripUnselectedAttributesFromCredential(criterion Criterion, cred *credenti
 
 	if subjectDID, ok := cred.CredentialSubject[credential.SubjectIDAttribute]; ok {
 		disclosedAttrs[credential.SubjectIDAttribute] = subjectDID
-		if proof, ok := cred.ClaimProofs[credential.SubjectIDAttribute]; ok {
-			disclosedProofs[credential.SubjectIDAttribute] = proof
+		if p, ok := cred.ClaimProofs[credential.SubjectIDAttribute]; ok {
+			disclosedProofs[credential.SubjectIDAttribute] = p
 		}
 	} else {
 		logrus.Warnf("could not find subject identity %s in credential %s", credential.SubjectIDAttribute, cred.ID)
@@ -229,12 +225,12 @@ func stripUnselectedAttributesFromCredential(criterion Criterion, cred *credenti
 		name := requestedAttr.AttributeName
 		if requestedAttr.Required || selectedAttributeSet[name] {
 			value, hasAttr := cred.CredentialSubject[name]
-			proof, hasProof := cred.ClaimProofs[name]
+			p, hasProof := cred.ClaimProofs[name]
 
 			if requestedAttr.Required || (hasAttr && value != nil) {
 				disclosedAttrs[name] = value
 				if hasProof {
-					disclosedProofs[name] = proof
+					disclosedProofs[name] = p
 				}
 			}
 		}
@@ -244,15 +240,15 @@ func stripUnselectedAttributesFromCredential(criterion Criterion, cred *credenti
 }
 
 func validCredentialExpiry(cred credential.UnsignedVerifiableCredential) error {
-	if  cred.ExpirationDate == ""{
+	if cred.ExpirationDate == "" {
 		return nil
 	}
 	now := time.Now().UTC()
 	credExp, err := time.Parse(time.RFC3339, cred.ExpirationDate)
 	if err != nil {
-		return  err
+		return err
 	}
-	if now.After(credExp){
+	if now.After(credExp) {
 		return fmt.Errorf("credential <%s> has expired. expiry: <%s>. current time: <%s>", cred.ID, cred.ExpirationDate, now.Format(time.RFC3339))
 	}
 	return nil

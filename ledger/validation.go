@@ -113,24 +113,36 @@ func (d DIDDoc) ValidateMetadata() error {
 }
 
 func (d DIDDoc) ValidateProof() error {
-	publicKey, err := did.GetProofCreatorPubKey(*d.DIDDoc)
+	keyDef, err := did.GetProofCreatorKeyDef(*d.DIDDoc)
 	if err != nil {
 		return err
 	}
 
-	if publicKey.Type == proof.EcdsaSecp256k1KeyType {
-		return VerifySecp256k1LedgerDIDDocSignature(*publicKey, d)
+	if keyDef.Type == proof.EcdsaSecp256k1KeyType {
+		verifier, err := did.AsVerifier(*keyDef)
+		if err != nil {
+			return err
+		}
+		suite, err := proof.SignatureSuites().GetSuiteForProof(d.GetProof())
+		if err != nil {
+			return err
+		}
+		return suite.Verify(&d, verifier)
 	}
 
-	decodedPublicKey, err := base58.Decode(publicKey.PublicKeyBase58)
+	decodedPublicKey, err := base58.Decode(keyDef.PublicKeyBase58)
 	if err != nil {
 		return err
 	}
-
-	if err := VerifyLedgerProof(&d, decodedPublicKey); err != nil {
+	verifier := &proof.Ed25519Verifier{PubKey: decodedPublicKey}
+	suite, err := proof.SignatureSuites().GetSuiteForProof(d.GetProof())
+	if err != nil {
 		return err
 	}
-	return did.VerifyDIDDocProof(*d.DIDDoc, decodedPublicKey)
+	if err := suite.Verify(&d, verifier); err != nil {
+		return err
+	}
+	return suite.Verify(d.DIDDoc, verifier)
 }
 
 func (d DIDDoc) ValidateUniqueness(ctx context.Context, provider DIDDocProvider) error {
@@ -219,19 +231,25 @@ func (r Revocation) ValidateMetadata() error {
 }
 
 func (r Revocation) ValidateProof(ctx context.Context, provider DIDDocProvider) error {
-	pubKey, err := GetPublicKey(ctx, r.IssuerDID, r.Proof.GetVerificationMethod(), provider)
+	keyDef, err := GetKeyDef(ctx, r.IssuerDID, r.Proof.GetVerificationMethod(), provider)
 	switch {
 	case err != nil:
-		logrus.WithError(err).Error("could not get pub keys")
+		logrus.WithError(err).Error("could not get key def")
 		return err
-	case pubKey == nil:
+	case keyDef == nil:
 		return fmt.Errorf("could not resolve specified key '%s' in did doc '%s'", r.Proof.GetVerificationMethod(), r.IssuerDID)
 	}
 
-	if proofErr := VerifyLedgerProof(r, pubKey); proofErr != nil {
+	key, err := keyDef.GetDecodedPublicKey()
+	if err != nil {
 		return err
 	}
-	return nil
+	verifier := &proof.Ed25519Verifier{PubKey: key}
+	suite, err := proof.SignatureSuites().GetSuiteForProof(r.GetProof())
+	if err != nil {
+		return err
+	}
+	return suite.Verify(r, verifier)
 }
 
 func (r Revocation) ValidateUniqueness(ctx context.Context, provider RevocationProvider) error {
@@ -322,12 +340,25 @@ func (s Schema) ValidateProof(ctx context.Context, provider DIDDocProvider) erro
 	if s.Proof == nil {
 		return errors.New("no proof on schema")
 	}
-	pubKey, err := GetPublicKey(ctx, s.Author, s.Proof.GetVerificationMethod(), provider)
+	keyDef, err := GetKeyDef(ctx, s.Author, s.Proof.GetVerificationMethod(), provider)
+	switch {
+	case err != nil:
+		logrus.WithError(err).Error("could not get key def")
+		return err
+	case keyDef == nil:
+		return fmt.Errorf("could not resolve specified key '%s' in did doc '%s'", s.Proof.GetVerificationMethod(), s.Author)
+	}
+
+	key, err := keyDef.GetDecodedPublicKey()
 	if err != nil {
-		logrus.WithError(err).Errorf("Could not get public key for schema: %s:%s", s.ID, s.Author)
 		return err
 	}
-	return VerifyLedgerProof(s, pubKey)
+	verifier := &proof.Ed25519Verifier{PubKey: key}
+	suite, err := proof.SignatureSuites().GetSuiteForProof(s.GetProof())
+	if err != nil {
+		return err
+	}
+	return suite.Verify(s, verifier)
 }
 
 func (s Schema) ValidateUniqueness(ctx context.Context, provider SchemaProvider) error {

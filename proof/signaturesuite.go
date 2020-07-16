@@ -20,7 +20,7 @@ type SignatureSuite interface {
 func withAndWithoutCanonicalizer(suite *LDSignatureSuite) *compositeSignatureSuite {
 	backup := *suite
 	backup.Canonicalizer = nil
-	return &compositeSignatureSuite{Main: suite, Backup: backup}
+	return &compositeSignatureSuite{main: suite, backup: backup}
 }
 
 // withV2Proofs returns a copy of the given LDSignatureSuite with the a ProofFactory that produces
@@ -43,93 +43,107 @@ func withB64Digest(suite *LDSignatureSuite) *LDSignatureSuite {
 // The signature generation always uses the primary suite. On verification, if the main suite fails,
 // then we will fallback to the backup suite.
 type compositeSignatureSuite struct {
-	Main   SignatureSuite
-	Backup SignatureSuite
+	main   SignatureSuite
+	backup SignatureSuite
 }
 
 func (s *compositeSignatureSuite) Type() SignatureType {
-	return s.Main.Type()
+	return s.main.Type()
 }
 
 func (s *compositeSignatureSuite) Sign(provable Provable, signer Signer) error {
-	return s.Main.Sign(provable, signer)
+	return s.main.Sign(provable, signer)
 }
 
 func (s *compositeSignatureSuite) Verify(provable Provable, verifier Verifier) error {
-	if err := s.Main.Verify(provable, verifier); err != nil {
-		return s.Backup.Verify(provable, verifier)
+	if err := s.main.Verify(provable, verifier); err != nil {
+		return s.backup.Verify(provable, verifier)
 	}
 	return nil
 }
 
-type SignatureSuiteFactory struct {
+type SignatureSuiteFactory interface {
+	// GetSuiteForProof returns the corresponding signature suite the proof was created using
+	GetSuiteForProof(proof *Proof) (SignatureSuite, error)
+
+	// GetSuiteForCredentialsProof returns the corresponding signature suite the credential proof was created using
+	GetSuiteForCredentialsProof(proof *Proof) (SignatureSuite, error)
+
+	// GetSuite returns the signature suite corresponding to the provided type and version of the suite
+	GetSuite(signatureType SignatureType, version ModelVersion) (SignatureSuite, error)
+
+	// GetSuiteForCredentials returns the signature suite corresponding to the provided
+	// type and version of the suite for credential signing
+	GetSuiteForCredentials(signatureType SignatureType, version ModelVersion) (SignatureSuite, error)
+}
+
+type signatureSuites struct {
 	// JCS Signature suite
-	JCSEd25519 SignatureSuite
+	jcsEd25519 SignatureSuite
 	// WorkEd25519 Signature suite with v1 Proofs
-	WorkEd25519 SignatureSuite
+	workEd25519 SignatureSuite
 	// WorkEd25519 Signature suite with v2 Proofs
-	WorkEd25519v2 SignatureSuite
+	workEd25519v2 SignatureSuite
 	// Ed25519 Signature suite with v1 Proofs
-	Ed25519 SignatureSuite
+	ed25519 SignatureSuite
 	// Ed25519 Signature suite with v2 Proofs
-	Ed25519v2 SignatureSuite
+	ed25519v2 SignatureSuite
 	// EcdsaSecp256k1 Signature suite with v1 Proofs
-	Secp256k1 SignatureSuite
+	secp256k1 SignatureSuite
 }
 
 // GetSuiteForProof returns the correct type of SignatureSuite to use to verify the given Proof.
-func (f *SignatureSuiteFactory) GetSuiteForProof(proof *Proof) (suite SignatureSuite, err error) {
-	return f.GetSuite(proof.Type, proof.ModelVersion())
+func (s *signatureSuites) GetSuiteForProof(proof *Proof) (suite SignatureSuite, err error) {
+	return s.GetSuite(proof.Type, proof.ModelVersion())
 }
 
 // GetSuite returns the correct SignatureSuite to use for signing or verifying a Proof of a
-// particular SignatureType and Proof model version.
-func (f *SignatureSuiteFactory) GetSuite(signatureType SignatureType, modelVersion ModelVersion) (suite SignatureSuite, err error) {
+// particular Type and Proof model version.
+func (s *signatureSuites) GetSuite(signatureType SignatureType, modelVersion ModelVersion) (suite SignatureSuite, err error) {
 	switch modelVersion {
 	case V1:
-		suite = f.getSuiteV1(signatureType)
+		suite = s.getSuiteV1(signatureType)
 	case V2:
-		suite = f.getSuiteV2(signatureType)
+		suite = s.getSuiteV2(signatureType)
 	}
 	if suite == nil {
-		err = fmt.Errorf("unsupported signature type")
+		err = fmt.Errorf("unsupported signature type: %s:%d", signatureType, modelVersion)
 	}
 	return
 }
 
-func (f *SignatureSuiteFactory) getSuiteV1(signatureType SignatureType) SignatureSuite {
+func (s *signatureSuites) getSuiteV1(signatureType SignatureType) SignatureSuite {
 	switch signatureType {
 	case EcdsaSecp256k1SignatureType:
-		return f.Secp256k1
+		return s.secp256k1
 	case WorkEdSignatureType:
-		return f.WorkEd25519
+		return s.workEd25519
 	case Ed25519SignatureType:
-		return f.Ed25519
+		return s.ed25519
 	}
 	return nil
 }
 
-func (f *SignatureSuiteFactory) getSuiteV2(signatureType SignatureType) SignatureSuite {
+func (s *signatureSuites) getSuiteV2(signatureType SignatureType) SignatureSuite {
 	switch signatureType {
 	case JCSEdSignatureType:
-		return f.JCSEd25519
+		return s.jcsEd25519
 	case WorkEdSignatureType:
-		return f.WorkEd25519v2
+		return s.workEd25519v2
 	case Ed25519SignatureType:
-		return f.Ed25519v2
+		return s.ed25519v2
 	}
 	return nil
 }
 
-// GetSuiteForCredentialProof returns the correct type of SignatureSuite to use to sign and verify
-// proofs on Verifiable Credentials. These proofs have diverged from the standard proofs by using
-// base64 encoding as a message digest.
-func (f *SignatureSuiteFactory) GetSuiteForCredentialProof(proof *Proof) (suite SignatureSuite, err error) {
-	switch proof.ModelVersion() {
+// GetSuiteForCredentials returns a signature suite for credential signing based on a key type
+// and model version of the signature requested
+func (s *signatureSuites) GetSuiteForCredentials(signatureType SignatureType, version ModelVersion) (suite SignatureSuite, err error) {
+	switch version {
 	case V1:
-		suite = f.getSuiteV1Cred(proof.Type)
+		suite = s.getSuiteV1Cred(signatureType)
 	case V2:
-		suite = f.getSuiteV2Cred(proof.Type)
+		suite = s.getSuiteV2Cred(signatureType)
 	}
 	if suite == nil {
 		err = fmt.Errorf("unsupported signature type")
@@ -137,7 +151,23 @@ func (f *SignatureSuiteFactory) GetSuiteForCredentialProof(proof *Proof) (suite 
 	return
 }
 
-func (f *SignatureSuiteFactory) getSuiteV1Cred(signatureType SignatureType) SignatureSuite {
+// GetSuiteForCredentialsProof returns the correct type of SignatureSuite to use to sign and verify
+// proofs on Verifiable Credentials. These proofs have diverged from the standard proofs by using
+// base64 encoding as a message digest.
+func (s *signatureSuites) GetSuiteForCredentialsProof(proof *Proof) (suite SignatureSuite, err error) {
+	switch proof.ModelVersion() {
+	case V1:
+		suite = s.getSuiteV1Cred(proof.Type)
+	case V2:
+		suite = s.getSuiteV2Cred(proof.Type)
+	}
+	if suite == nil {
+		err = fmt.Errorf("unsupported signature type")
+	}
+	return
+}
+
+func (s *signatureSuites) getSuiteV1Cred(signatureType SignatureType) SignatureSuite {
 	switch signatureType {
 	case Ed25519SignatureType:
 		return ed25519SignatureSuiteV1B64
@@ -148,7 +178,7 @@ func (f *SignatureSuiteFactory) getSuiteV1Cred(signatureType SignatureType) Sign
 	}
 }
 
-func (f *SignatureSuiteFactory) getSuiteV2Cred(signatureType SignatureType) SignatureSuite {
+func (s *signatureSuites) getSuiteV2Cred(signatureType SignatureType) SignatureSuite {
 	switch signatureType {
 	case Ed25519SignatureType:
 		return ed25519SignatureSuiteV2B64
@@ -161,14 +191,14 @@ func (f *SignatureSuiteFactory) getSuiteV2Cred(signatureType SignatureType) Sign
 	}
 }
 
-func SignatureSuites() *SignatureSuiteFactory {
-	return &SignatureSuiteFactory{
-		JCSEd25519:    jcsEd25519SignatureSuite,
-		WorkEd25519:   workSignatureSuiteV1,
-		WorkEd25519v2: workSignatureSuiteV2,
-		Ed25519:       ed25519SignatureSuiteV1,
-		Ed25519v2:     ed25519SignatureSuiteV2,
-		Secp256k1:     secp256K1SignatureSuite,
+func SignatureSuites() SignatureSuiteFactory {
+	return &signatureSuites{
+		jcsEd25519:    jcsEd25519SignatureSuite,
+		workEd25519:   workSignatureSuiteV1,
+		workEd25519v2: workSignatureSuiteV2,
+		ed25519:       ed25519SignatureSuiteV1,
+		ed25519v2:     ed25519SignatureSuiteV2,
+		secp256k1:     secp256K1SignatureSuite,
 	}
 }
 
@@ -195,15 +225,15 @@ var (
 
 	// General WorkEd25519 signatures with "verificationMethod" field.
 	workSignatureSuiteV2 = withAndWithoutCanonicalizer(
-		withV2Proofs(workSignatureSuiteV1.Main.(*LDSignatureSuite)))
+		withV2Proofs(workSignatureSuiteV1.main.(*LDSignatureSuite)))
 
 	// WorkEd25519 signatures with "creator" field on credential proofs.
 	workSignatureSuiteV1B64 = withAndWithoutCanonicalizer(
-		withB64Digest(workSignatureSuiteV1.Main.(*LDSignatureSuite)))
+		withB64Digest(workSignatureSuiteV1.main.(*LDSignatureSuite)))
 
 	// WorkEd25519 signatures with "verificationMethod" field on credential proofs.
 	workSignatureSuiteV2B64 = withAndWithoutCanonicalizer(
-		withV2Proofs(withB64Digest(workSignatureSuiteV1.Main.(*LDSignatureSuite))))
+		withV2Proofs(withB64Digest(workSignatureSuiteV1.main.(*LDSignatureSuite))))
 
 	// Ed25519 signatures with "creator" field.
 	ed25519SignatureSuiteV1 = withAndWithoutCanonicalizer(
@@ -218,15 +248,15 @@ var (
 
 	// Ed25519 signatures with "verificationMethod" field.
 	ed25519SignatureSuiteV2 = withAndWithoutCanonicalizer(
-		withV2Proofs(ed25519SignatureSuiteV1.Main.(*LDSignatureSuite)))
+		withV2Proofs(ed25519SignatureSuiteV1.main.(*LDSignatureSuite)))
 
 	// Ed25519 signatures with "creator" field on credential proofs.
 	ed25519SignatureSuiteV1B64 = withAndWithoutCanonicalizer(
-		withB64Digest(ed25519SignatureSuiteV1.Main.(*LDSignatureSuite)))
+		withB64Digest(ed25519SignatureSuiteV1.main.(*LDSignatureSuite)))
 
 	// Ed25519 signatures with "verificationMethod" field on credential proofs.
 	ed25519SignatureSuiteV2B64 = withAndWithoutCanonicalizer(
-		withV2Proofs(withB64Digest(ed25519SignatureSuiteV1.Main.(*LDSignatureSuite))))
+		withV2Proofs(withB64Digest(ed25519SignatureSuiteV1.main.(*LDSignatureSuite))))
 
 	// EcdsaSecp256k1 signatures with "creator" field used for administrative actions.
 	secp256K1SignatureSuite = &LDSignatureSuite{

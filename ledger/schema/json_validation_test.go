@@ -1,13 +1,17 @@
 package schema
 
 import (
-	"context"
+	"encoding/json"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/workdaycredentials/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/credential/schema"
 	"github.com/workdaycredentials/ledger-common/ledger"
+	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas"
 	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/access"
 	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/address"
 	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/certification"
@@ -26,579 +30,122 @@ import (
 // This does not ValidateWithJSONLoader anything past what JSON SignedMetadata can ValidateWithJSONLoader. Post-JSON SignedMetadata validations
 // Can be found in other tests (in the future). This test also assumes the input is valid JSON SignedMetadata and valid JSON.
 
+// Mainly validates the builder generates valid credentials against the schema
 func TestCredentialSchema(t *testing.T) {
-	schemaString := credential.VerifiableCredentialSchema
+	schemaString, err := schema.GetSchema(schema.VerifiableCredentialSchema)
+	assert.NoError(t, err)
 
-	testConfigs := []struct {
-		name          string
-		json          string
-		errorExpected bool
-	}{
-		{
-			name: "Valid definition json with name subject",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:6sYe1y3zXhmyrBkgHgAgaq#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: false,
+	testSchema := `{
+	  "$schema": "http://json-schema.org/draft-07/schema#",
+	  "description": "Name",
+	  "type": "object",
+	  "properties": {
+		"title": {
+		  "type": "string"
 		},
-		{
-			name: "Invalid definition json with invalid version",
-			json: `{
-                    "version": "1.0",
-                    "id": "did:work:abcdefghijklmnoprstuvp#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Certification"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
+		"firstName": {
+		  "type": "string"
 		},
-		{
-			name: "Invalid definition json with invalid id",
-			json: `{
-                    "version": "1.0.1",
-                    "id": "did:work:abcdefghijklmnoprstuv#00112233-4455-6677-8899",
-                    "type": ["VerifiableCredential"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
+		"lastName": {
+		  "type": "string"
 		},
-		{
-			name: "Valid definition json with invalid type",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": "Name",
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
+		"middleName": {
+		  "type": "string"
 		},
-		{
-			name: "Valid definition json with missing credential type",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Invalid definition json with invalid issuer did format",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:not",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Invalid definition json with bad credential s id",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:bad/json-s/Name",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Invalid definition json with bad credential s type",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "Unsupported"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Invalid definition json with bad credential no s type",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": []
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Invalid definition json with empty credential subject",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {},
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Valid definition json with valid claim proof",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "claimProof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "claimSignatureValue": {
-                            "title": "sample-title-signature"
-                        }
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: false,
-		},
-		{
-			name: "Invalid definition json with invalid claim proof type",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "claimProof": {
-                        "type": "bad",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "claimSignatureValue": {
-                            "title": "sample-title-signature"
-                        }
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Invalid definition json with invalid claim proof date",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "claimProof": {
-                        "type": "RsaSignature2018",
-                        "created": "00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "claimSignatureValue": {
-                            "title": "sample-title-signature"
-                        }
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Invalid definition json with invalid claim signature (empty)",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "claimProof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "claimSignatureValue": {}
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Invalid definition json with invalid claim proof fields (missing)",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "claimProof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Invalid definition json with bad proof type",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "bad",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Invalid definition json with bad proof created date",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Invalid definition json with bad proof (missing field)",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1"
-                    }
-                   }`,
-			errorExpected: true,
-		},
+		"suffix": {
+		  "type": "string"
+		}
+	  },
+	  "required": ["firstName", "lastName"],
+	  "additionalProperties": false
+	 }
+	`
+	var s ledger.JSONSchemaMap
+	if err := json.Unmarshal([]byte(testSchema), &s); err != nil {
+		panic(err)
 	}
 
-	for _, testConfig := range testConfigs {
-		testConfig := testConfig // pin the variable to quiet the linter
-		t.Run(testConfig.name, func(t *testing.T) {
-			err := Validate(schemaString, testConfig.json)
-			if !testConfig.errorExpected {
-				if err != nil {
-					t.Errorf("Unexpected error: %s, for json: %s", err.Error(), testConfig.json)
-				}
-			} else {
-				assert.IsType(t, InvalidSchemaError{}, err)
-			}
-		})
-	}
+	issuerDoc, pk := ledger.GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+	signer, err := proof.NewEd25519Signer(pk, issuerDoc.PublicKey[0].ID)
+	assert.NoError(t, err)
+	ls, err := ledger.GenerateLedgerSchema("Name", issuerDoc.ID, signer, proof.JCSEdSignatureType, s)
+	assert.NoError(t, err)
+
+	t.Run("happy path cred with expiry", func(t *testing.T) {
+		now := time.Now()
+		expiry := now.Add(time.Hour * 24)
+		credID := uuid.New().String()
+		metadata := credential.NewMetadataWithTimestampAndExpiry(credID, issuerDoc.ID, ls.ID, now, expiry)
+		cred, err := credential.Builder{
+			SubjectDID: credID,
+			Data: map[string]interface{}{
+				"firstName": "Genghis",
+			},
+			Metadata:      &metadata,
+			Signer:        signer,
+			SignatureType: proof.JCSEdSignatureType,
+		}.Build()
+		assert.NoError(t, err)
+
+		credBytes, err := json.Marshal(cred)
+		assert.NoError(t, err)
+		assert.NoError(t, Validate(schemaString, string(credBytes)))
+	})
+
+	t.Run("happy path cred without expiry", func(t *testing.T) {
+		now := time.Now()
+		credID := uuid.New().String()
+		metadata := credential.NewMetadataWithTimestamp(credID, issuerDoc.ID, ls.ID, now)
+		cred, err := credential.Builder{
+			SubjectDID: credID,
+			Data: map[string]interface{}{
+				"firstName": "Genghis",
+			},
+			Metadata:      &metadata,
+			Signer:        signer,
+			SignatureType: proof.JCSEdSignatureType,
+		}.Build()
+		assert.NoError(t, err)
+
+		credBytes, err := json.Marshal(cred)
+		assert.NoError(t, err)
+		assert.NoError(t, Validate(schemaString, string(credBytes)))
+	})
+
+	t.Run("missing metadata", func(t *testing.T) {
+		credID := uuid.New().String()
+		_, err := credential.Builder{
+			SubjectDID: credID,
+			Data: map[string]interface{}{
+				"firstName": "Genghis",
+			},
+			Signer:        signer,
+			SignatureType: proof.JCSEdSignatureType,
+		}.Build()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Field validation for 'Metadata' failed")
+	})
+
+	t.Run("missing proof", func(t *testing.T) {
+		now := time.Now()
+		credID := uuid.New().String()
+		metadata := credential.NewMetadataWithTimestamp(credID, issuerDoc.ID, ls.ID, now)
+		cred, err := credential.Builder{
+			SubjectDID: credID,
+			Data: map[string]interface{}{
+				"bad": "Genghis",
+			},
+			Metadata:      &metadata,
+			Signer:        signer,
+			SignatureType: proof.JCSEdSignatureType,
+		}.Build()
+		assert.NoError(t, err)
+
+		cred.Proof = nil
+		credBytes, err := json.Marshal(cred)
+		assert.NoError(t, err)
+		assert.Error(t, Validate(schemaString, string(credBytes)))
+	})
 }
 
 func TestValidateNameCredential(t *testing.T) {
@@ -652,7 +199,7 @@ func TestValidateNameCredential(t *testing.T) {
 			err := Validate(schemaString, testConfig.json)
 			if !testConfig.errorExpected {
 				if err != nil {
-					t.Errorf("Unexpected error: %s, for json: %s", err.Error(), testConfig.json)
+					t.Errorf("Unexpected error: %s, for schema: %s", err.Error(), testConfig.json)
 				}
 			}
 		})
@@ -716,7 +263,7 @@ func TestValidateEmploymentCredential(t *testing.T) {
 			err := Validate(schemaString, testConfig.json)
 			if !testConfig.errorExpected {
 				if err != nil {
-					t.Errorf("Unexpected error: %s, for json: %s", err.Error(), testConfig.json)
+					t.Errorf("Unexpected error: %s, for schema: %s", err.Error(), testConfig.json)
 				}
 			}
 		})
@@ -768,7 +315,7 @@ func TestValidateEmailCredential(t *testing.T) {
 			err := Validate(schemaString, testConfig.json)
 			if !testConfig.errorExpected {
 				if err != nil {
-					t.Errorf("Unexpected error: %s, for json: %s", err.Error(), testConfig.json)
+					t.Errorf("Unexpected error: %s, for schema: %s", err.Error(), testConfig.json)
 				}
 			}
 		})
@@ -830,7 +377,7 @@ func TestValidateEducationCredential(t *testing.T) {
 			err := Validate(schemaString, testConfig.json)
 			if !testConfig.errorExpected {
 				if err != nil {
-					t.Errorf("Unexpected error: %s, for json: %s", err.Error(), testConfig.json)
+					t.Errorf("Unexpected error: %s, for schema: %s", err.Error(), testConfig.json)
 				}
 			}
 		})
@@ -1132,7 +679,7 @@ func TestValidatePhoneNumberCredential(t *testing.T) {
 			err := Validate(schemaString, testConfig.json)
 			if !testConfig.errorExpected {
 				if err != nil {
-					t.Errorf("Unexpected error: %s, for json: %s", err.Error(), testConfig.json)
+					t.Errorf("Unexpected error: %s, for schema: %s", err.Error(), testConfig.json)
 				}
 			}
 		})
@@ -1325,149 +872,6 @@ func TestValidatePayslipCredential(t *testing.T) {
 	}
 }
 
-func TestFullCredentialSchema(t *testing.T) {
-
-	var (
-		credentialString            = credential.VerifiableCredentialSchema
-		credentialSubjectNameString = name.Name
-	)
-
-	testConfigs := []struct {
-		name          string
-		json          string
-		errorExpected bool
-	}{
-		{
-			name: "Valid full credential and credential subject json with name s",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: false,
-		},
-		{
-			name: "Invalid credential json with valid subject json (missing version field)",
-			json: `{
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Valid credential json with invalid subject json (missing required field)",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:abcdefghijklmnoprstuv",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-		{
-			name: "Valid definition json with invalid holder did",
-			json: `{
-                    "version": "1.0.0",
-                    "id": "did:work:abcdefghijklmnoprstuv#f6545054-f958-4b90-a7cd-d9b207af0acb",
-                    "type": ["VerifiableCredential", "Name"],
-                    "issuer": "did:work:abcdefghijklmnoprstuv",
-                    "issuanceDate": "2018-01-01T00:00:00+00:00",
-                    "targetHolder": "did:work:",
-                    "credentialSchema": {
-                        "id": "did:work:8RcWPSBtB4QwfC68yneDxC;id=860285e2-183d-4fe3-9767-babc744396b8;version=1.0",
-                        "type": "JsonSchemaValidator2018"
-                    },
-                    "credentialSubject": {
-                        "title": "Mr",
-                        "firstName": "Test",
-                        "middleName": "Ing",
-                        "lastName": "User",
-                        "suffix": "III"
-                    },
-                    "proof": {
-                        "type": "RsaSignature2018",
-                        "created": "2018-01-01T00:00:00+00:00",
-                        "creator": "https://example.com/jdoe/keys/1",
-                        "signatureValue": "BavEll0/I1zpYw8XNi1bgVg/sCneO4Jugez8RwDg/="
-                    }
-                   }`,
-			errorExpected: true,
-		},
-	}
-
-	for _, testConfig := range testConfigs {
-		testConfig := testConfig // pin the variable to quiet the linter
-		t.Run(testConfig.name, func(t *testing.T) {
-			err := ValidateCredential(credentialString, credentialSubjectNameString, testConfig.json)
-			if !testConfig.errorExpected {
-				if err != nil {
-					t.Errorf("Unexpected error: %s, for json: %s", err.Error(), testConfig.json)
-				}
-			} else {
-				assert.Error(t, err)
-			}
-		})
-	}
-}
-
 func TestValidateLedgerSchemaRequest(t *testing.T) {
 	testConfigs := []struct {
 		name          string
@@ -1496,7 +900,7 @@ func TestValidateLedgerSchemaRequest(t *testing.T) {
 				JSONSchema: &ledger.JSONSchema{
 					Schema: map[string]interface{}{
 						"$schema":     "http://json-schema.org/draft-07/schema#",
-						"description": "Name JSONSchema",
+						"description": "Name Schema",
 						"type":        "object",
 						"properties": map[string]interface{}{
 							"title": map[string]string{
@@ -1546,7 +950,7 @@ func TestValidateLedgerSchemaRequest(t *testing.T) {
 				JSONSchema: &ledger.JSONSchema{
 					Schema: map[string]interface{}{
 						"$schema":     "http://json-schema.org/draft-07/schema#",
-						"description": "Name JSONSchema",
+						"description": "Name Schema",
 						"type":        "object",
 						"properties": map[string]interface{}{
 							"title": map[string]string{
@@ -1587,7 +991,7 @@ func TestValidateLedgerSchemaRequest(t *testing.T) {
 	for _, testConfig := range testConfigs {
 		testConfig := testConfig // pin the variable to quiet the linter
 		t.Run(testConfig.name, func(_ *testing.T) {
-			err := ValidateSchemaRequest(context.Background(), testConfig.document, testConfig.version)
+			err := ValidateSchemaRequest(testConfig.document, testConfig.version)
 			if !testConfig.errorExpected {
 				assert.NoError(t, err)
 			} else {
@@ -1597,37 +1001,7 @@ func TestValidateLedgerSchemaRequest(t *testing.T) {
 	}
 }
 
-func TestRFC3339Validation(t *testing.T) {
-	checker := RFC3339FormatChecker{}
-
-	// Valid formats
-	good := checker.IsFormat("2006-01-02T15:04:05+07:00")
-	assert.True(t, good)
-
-	good = checker.IsFormat("2006-01-02T15:04:05+04:00")
-	assert.True(t, good)
-
-	good = checker.IsFormat("2006-01-02T15:04:05Z")
-	assert.True(t, good)
-
-	good = checker.IsFormat("2006-01-02T15:04:05+00:00")
-	assert.True(t, good)
-
-	// Invalid formats
-	bad := checker.IsFormat("200601-02T15:04:05+07:00")
-	assert.False(t, bad)
-
-	bad = checker.IsFormat("2006-01-02T15:04:05Z04:00")
-	assert.False(t, bad)
-
-	bad = checker.IsFormat("2006-01-02T15:04:05")
-	assert.False(t, bad)
-
-	bad = checker.IsFormat("2006-01-02+15:04:05+00:00")
-	assert.False(t, bad)
-}
-
-func TestIsJson(t *testing.T) {
+func TestIsJSON(t *testing.T) {
 	json := "{}"
 	json1 := `{
                 "proof": {
@@ -1659,7 +1033,8 @@ func TestIsJson(t *testing.T) {
 
 // Tests validation on ledger metadata for incorrectly formed metadata
 func TestLedgerMetadataValidation(t *testing.T) {
-	schemaString := ledger.MetadataSchema
+	schemaString, err := schemas.GetJSONFile(schemas.LedgerMetadataSchema)
+	assert.NoError(t, err)
 
 	testConfigs := []struct {
 		name          string
@@ -1726,7 +1101,7 @@ func TestLedgerMetadataValidation(t *testing.T) {
 		{
 			name: "invalid ledger metadata date",
 			json: `{
-                    "type": "https://credentials.workday.com/docs/specification/v1.0/schema.json",
+                    "type": "https://credentials.workday.com/docs/specification/v1.0/schema.schema",
                     "modelVersion": "1.0",
 					"id": "did:work:6sYe1y3zXhmyrBkgHgAgaq;id=ea691feb8e4537b9bb5d2b5d5bb984;version=1.0",
                     "name": "Name",

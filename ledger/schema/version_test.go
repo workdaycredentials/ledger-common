@@ -26,7 +26,7 @@ const (
 )
 
 var (
-	didDoc, pk = ledger.GenerateLedgerDIDDoc(proof.WorkEdSignatureType)
+	didDoc, pk = ledger.GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
 )
 
 func TestValidateSchemaUpdate(t *testing.T) {
@@ -279,7 +279,6 @@ func validateRemovalOfExistingAttributes(t *testing.T, input *UpdateInput) {
 }
 
 func validateAdditionOfNewProperty(t *testing.T, input *UpdateInput) {
-
 	newPropertyName := "someNewPropertyName"
 
 	schemaWithPropertyAdded := &ledger.Schema{}
@@ -330,7 +329,6 @@ func TestMajorIncrementHasZeroMinorVersion(t *testing.T) {
 }
 
 func TestIncrementVersionNumber(t *testing.T) {
-
 	previousVersion := expectedSchemaVersion
 	incremented, err := incrementMajorVersion(previousVersion)
 	assert.NoError(t, err)
@@ -352,7 +350,6 @@ func TestIncrementVersionNumber(t *testing.T) {
 }
 
 func TestIncrementIntAsString(t *testing.T) {
-
 	one := "1"
 	result, err := incrementIntAsString(one)
 	assert.NoError(t, err)
@@ -401,9 +398,9 @@ func TestExtractAuthorDIDFromID(t *testing.T) {
 }
 
 func TestExtractResourceIDFromSchemaID(t *testing.T) {
-	resourceId, err := ExtractSchemaResourceID(testSchemaID)
+	resourceID, err := ExtractSchemaResourceID(testSchemaID)
 	assert.NoError(t, err)
-	assert.Equal(t, "112f1a23ce1747b199265dfcc235049b", resourceId)
+	assert.Equal(t, "112f1a23ce1747b199265dfcc235049b", resourceID)
 }
 
 func generateSchema(didDoc did.DIDDoc, privKey ed25519.PrivateKey) *ledger.Schema {
@@ -413,24 +410,19 @@ func generateSchema(didDoc did.DIDDoc, privKey ed25519.PrivateKey) *ledger.Schem
 	  "type": "object",
 	  "properties": {
 		"title": {
-		  "type": "string",
-		  "format": "fake"
+		  "type": "string"
 		},
 		"firstName": {
-		  "type": "string",
-		  "format": "fake"
+		  "type": "string"
 		},
 		"lastName": {
-		  "type": "string",
-		  "format": "fake"
+		  "type": "string"
 		},
 		"middleName": {
-		  "type": "string",
-		  "format": "fake"
+		  "type": "string"
 		},
 		"suffix": {
-		  "type": "string",
-		  "format": "fake"
+		  "type": "string"
 		}
 	  },
 	  "required": ["firstName", "lastName"],
@@ -441,7 +433,11 @@ func generateSchema(didDoc did.DIDDoc, privKey ed25519.PrivateKey) *ledger.Schem
 	if err := json.Unmarshal([]byte(testSchema), &s); err != nil {
 		panic(err)
 	}
-	schema, err := ledger.GenerateLedgerSchema("Name", didDoc.ID, didDoc.PublicKey[0].ID, proof.WorkEd25519Signer{PrivKey: privKey}, s)
+	signer, err := proof.NewEd25519Signer(privKey, didDoc.PublicKey[0].ID)
+	if err != nil {
+		panic(err)
+	}
+	schema, err := ledger.GenerateLedgerSchema("Name", didDoc.ID, signer, proof.WorkEdSignatureType, s)
 	if err != nil {
 		panic(err)
 	}

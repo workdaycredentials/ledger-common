@@ -1,50 +1,49 @@
 package presentation
 
 import (
-    "github.com/workdaycredentials/ledger-common/credential"
-    "github.com/workdaycredentials/ledger-common/proof"
-    "github.com/workdaycredentials/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 var unsignedProofReaChallengeWithSchemaRange = UnsignedCompositeProofRequestInstanceChallenge{
-    ProofRequestInstanceID: "93d90cba-eb20-41ca-93ee-2d030dda0b60",
-    ProofResponseURL:       "https://responseendppint.com/path",
-    ProofRequest: &CompositeProofRequest{
-        ProofReqRespMetadata: ProofReqRespMetadata{},
-        Description:          "Credit card application information",
-        Verifier:             "did:work:28RB9jAy9HtVet3zFhdWaM",
-        Criteria: []Criterion{
-            {
-                Description: "Contact Information",
-                Reason:      "Send information regarding your application",
-                Issuers: Issuers{
-                    DIDs: []string{
-                        "did:work:PyBScGDehBULWHoZJC7Efk",
-                        "did:work:W4Qi2D1DpBZig513ztvCFC",
-                        "did:work:7SWNtygraxEPqNKhuWpw8f",
-                    },
-                },
-                MaxRequired: 1,
-                MinRequired: 1,
-                Schema: SchemaReq{
-                    AuthorDID:          "did:work:6xLyHVb7Fzdq5tcou3y3LL",
-                    ResourceIdentifier: "1234-5678-5432",
-                    SchemaVersionRange: "^1.1",
-                    Attributes: []AttributeReq{
-                        {
-                            AttributeName: "emailAddress",
-                            Required:      true,
-                        },
-                    },
-                },
-            },
-        },
-    },
+	ProofRequestInstanceID: "93d90cba-eb20-41ca-93ee-2d030dda0b60",
+	ProofResponseURL:       "https://responseendppint.com/path",
+	ProofRequest: &CompositeProofRequest{
+		ProofReqRespMetadata: ProofReqRespMetadata{},
+		Description:          "Credit card application information",
+		Verifier:             "did:work:28RB9jAy9HtVet3zFhdWaM",
+		Criteria: []Criterion{
+			{
+				Description: "Contact Information",
+				Reason:      "Send information regarding your application",
+				Issuers: Issuers{
+					DIDs: []string{
+						"did:work:PyBScGDehBULWHoZJC7Efk",
+						"did:work:W4Qi2D1DpBZig513ztvCFC",
+						"did:work:7SWNtygraxEPqNKhuWpw8f",
+					},
+				},
+				MaxRequired: 1,
+				MinRequired: 1,
+				Schema: SchemaReq{
+					AuthorDID:          "did:work:6xLyHVb7Fzdq5tcou3y3LL",
+					ResourceIdentifier: "1234-5678-5432",
+					SchemaVersionRange: "^1.1",
+					Attributes: []AttributeReq{
+						{
+							AttributeName: "emailAddress",
+							Required:      true,
+						},
+					},
+				},
+			},
+		},
+	},
 }
 
 var ProofReaChallengeWithSchemaRange = CompositeProofRequestInstanceChallenge{
-    UnsignedCompositeProofRequestInstanceChallenge: unsignedProofReaChallengeWithSchemaRange,
-    Proof: proof.Proof{},
+	UnsignedCompositeProofRequestInstanceChallenge: unsignedProofReaChallengeWithSchemaRange,
 }
 
 var proofReqChallenge = `{

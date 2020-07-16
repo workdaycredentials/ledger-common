@@ -12,7 +12,26 @@ import (
 // credentials, like one would find in the W3C Verifiable Credentials Data Model.
 type Presentation struct {
 	UnsignedPresentation
-	Proof []proof.Proof `json:"proof"`
+	Proof []*proof.Proof `json:"proof,omitempty"`
+}
+
+// These methods assume a single proof.
+func (p *Presentation) GetProof() *proof.Proof {
+	if len(p.Proof) == 0 {
+		return nil
+	}
+	return p.Proof[0]
+}
+
+func (p *Presentation) SetProof(pr *proof.Proof) {
+	if pr == nil {
+		p.Proof = nil
+		return
+	}
+	if len(p.Proof) == 0 {
+		p.Proof = make([]*proof.Proof, 1)
+	}
+	p.Proof[0] = pr
 }
 
 // UnsignedPresentation is a set of Verifiable Credentials that will be returned in response to a
@@ -27,7 +46,7 @@ type UnsignedPresentation struct {
 	Credentials  []credential.VersionedCreds `json:"verifiableCredential"`
 }
 
-///////////// Platform use only /////////////
+// /////////// Platform use only /////////////
 
 // Composite presentations
 
@@ -36,25 +55,25 @@ type UnsignedPresentation struct {
 // Additionally, the criterion can optionally place restrictions on the credential Issuers and
 // the minimum/maximum number of credentials that must/can be supplied.
 type Criterion struct {
-	Description string      `json:"description"`
-	Reason      string      `json:"reason"`
-	Issuers     Issuers     `json:"issuers"`
-	MaxRequired int         `json:"max"`
-	MinRequired int         `json:"min"`
-	AllowExpired *bool      `json:"allowExpired,omitempty"`
-	Schema      SchemaReq   `json:"schema"`
-	Conditions  []Condition `json:"conditions,omitempty"`
+	Description  string      `json:"description"`
+	Reason       string      `json:"reason"`
+	Issuers      Issuers     `json:"issuers"`
+	MaxRequired  int         `json:"max"`
+	MinRequired  int         `json:"min"`
+	AllowExpired *bool       `json:"allowExpired,omitempty"`
+	Schema       SchemaReq   `json:"schema"`
+	Conditions   []Condition `json:"conditions,omitempty"`
 }
 
 type Issuers struct {
-	DIDs            []string         `json:"dids,omitempty"`
+	DIDs []string `json:"dids,omitempty"`
 }
 
 // SchemaReq identifies a schema and defines the collection of attributes that are being requested
 // in the Criterion. The Verifier is discouraged from requesting attributes that are unnecessary to
 // the context of the interaction with the Holder.
 type SchemaReq struct {
-	//deprecated
+	// deprecated
 	SchemaID           string         `json:"id"`
 	AuthorDID          string         `json:"did,omitempty"`
 	ResourceIdentifier string         `json:"resource,omitempty"`
@@ -111,7 +130,15 @@ type UnsignedCompositeProofRequestInstanceChallenge struct {
 
 type CompositeProofRequestInstanceChallenge struct {
 	UnsignedCompositeProofRequestInstanceChallenge
-	Proof proof.Proof `json:"proof"`
+	Proof *proof.Proof `json:"proof,omitempty"`
+}
+
+func (c *CompositeProofRequestInstanceChallenge) GetProof() *proof.Proof {
+	return c.Proof
+}
+
+func (c *CompositeProofRequestInstanceChallenge) SetProof(p *proof.Proof) {
+	c.Proof = p
 }
 
 type CompositeProofRequest struct {
@@ -144,7 +171,26 @@ type UnsignedCompositeProofResponseSubmission struct {
 
 type CompositeProofResponseSubmission struct {
 	UnsignedCompositeProofResponseSubmission
-	Proof []proof.Proof `json:"proof"`
+	Proof []*proof.Proof `json:"proof,omitempty"`
+}
+
+// These methods assume a single proof.
+func (c *CompositeProofResponseSubmission) GetProof() *proof.Proof {
+	if len(c.Proof) == 0 {
+		return nil
+	}
+	return c.Proof[0]
+}
+
+func (c *CompositeProofResponseSubmission) SetProof(pr *proof.Proof) {
+	if pr == nil {
+		c.Proof = nil
+		return
+	}
+	if len(c.Proof) == 0 {
+		c.Proof = make([]*proof.Proof, 1)
+	}
+	c.Proof[0] = pr
 }
 
 // FulfilledCriterion holds a request Criterion and the list of all Proof Presentations that
