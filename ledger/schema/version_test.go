@@ -26,7 +26,7 @@ const (
 )
 
 var (
-	didDoc, pk = ledger.GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
+	didDoc, pk = ledger.GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 )
 
 func TestValidateSchemaUpdate(t *testing.T) {

@@ -22,11 +22,11 @@ var (
 )
 
 func TestGenerateDIDDocWithAndWithoutContext(t *testing.T) {
-	suite, err := proof.SignatureSuites().GetSuite(proof.WorkEdSignatureType, proof.V2)
+	suite, err := proof.SignatureSuites().GetSuite(proof.JCSEdSignatureType, proof.V2)
 	assert.NoError(t, err)
 
 	t.Run("Verify with context", func(t *testing.T) {
-		contextDoc, _ := GenerateDIDDocWithContext(proof.Ed25519KeyType, proof.WorkEdSignatureType)
+		contextDoc, _ := GenerateDIDDocWithContext(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 		assert.Equal(t, SchemaContext, contextDoc.SchemaContext)
 		pk, err := base58.Decode(contextDoc.PublicKey[0].PublicKeyBase58)
 		assert.NoError(t, err)
@@ -36,7 +36,7 @@ func TestGenerateDIDDocWithAndWithoutContext(t *testing.T) {
 	})
 
 	t.Run("Verify without context", func(t *testing.T) {
-		withoutContextDoc, _ := GenerateDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
+		withoutContextDoc, _ := GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 		assert.Equal(t, "", withoutContextDoc.SchemaContext)
 		pk, err := base58.Decode(withoutContextDoc.PublicKey[0].PublicKeyBase58)
 		assert.NoError(t, err)
@@ -166,7 +166,7 @@ func TestExtractEdPublicKeyFromDID(t *testing.T) {
 
 func TestDeactivateDIDDoc(t *testing.T) {
 	t.Run("Using existing DID Doc", func(t *testing.T) {
-		doc, privateKey := GenerateDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
+		doc, privateKey := GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 		assert.NotEmpty(t, doc.PublicKey)
 
 		// deactivate and make sure it has no more pub keys
@@ -184,14 +184,14 @@ func TestDeactivateDIDDoc(t *testing.T) {
 	})
 
 	t.Run("Using generic method", func(t *testing.T) {
-		doc, privateKey := GenerateDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
+		doc, privateKey := GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 		assert.NotEmpty(t, doc.PublicKey)
 
 		signer, err := proof.NewEd25519Signer(privateKey, doc.PublicKey[0].ID)
 		assert.NoError(t, err)
 
 		// deactivate and make sure it has no more pub keys
-		deactivated, err := DeactivateDIDDocGeneric(signer, proof.WorkEdSignatureType, doc.ID)
+		deactivated, err := DeactivateDIDDocGeneric(signer, proof.JCSEdSignatureType, doc.ID)
 		assert.NoError(t, err)
 		assert.Empty(t, deactivated.PublicKey)
 

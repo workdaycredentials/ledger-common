@@ -6,7 +6,6 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -48,22 +47,6 @@ const (
 	V1 ModelVersion = 1
 	V2 ModelVersion = 2
 )
-
-func (s SignatureType) CorrespondingKeyType() KeyType {
-	switch s {
-	case EcdsaSecp256k1SignatureType:
-		return EcdsaSecp256k1KeyType
-	case JCSEdSignatureType:
-		fallthrough
-	case WorkEdSignatureType:
-		fallthrough
-	case Ed25519SignatureType:
-		return Ed25519KeyType
-	default:
-		logrus.Errorf("unknown type: %s", s)
-		return ""
-	}
-}
 
 // Proof represents a verifiable digital signature.
 type Proof struct {

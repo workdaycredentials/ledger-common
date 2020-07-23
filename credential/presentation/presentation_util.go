@@ -54,7 +54,7 @@ func GenerateProof(b64Credential, b64KeyReference, b64SigningKey, b64Presentatio
 	if err != nil {
 		return "", err
 	}
-	presentation, err := GeneratePresentationForVersionedCred(cred, signer, proof.WorkEdSignatureType, string(presentationID))
+	presentation, err := GeneratePresentationForVersionedCred(cred, signer, proof.JCSEdSignatureType, string(presentationID))
 	if err != nil {
 		return "", err
 	}

@@ -431,7 +431,7 @@ func Test_isV1Credential(t *testing.T) {
 
 func Test_CheckVerifierSignatureWorkEd25519(t *testing.T) {
 	// Create a Verifier DIDDoc
-	verifierDIDDoc, privKey := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.WorkEdSignatureType)
+	verifierDIDDoc, privKey := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 	ledgerDIDDoc := &ledger.DIDDoc{
 		Metadata: &ledger.Metadata{
 			ID: verifierDIDDoc.ID,
@@ -452,7 +452,7 @@ func Test_CheckVerifierSignatureWorkEd25519(t *testing.T) {
 	signer, err := proof.NewEd25519Signer(privKey, signingKeyRef)
 	assert.NoError(t, err)
 
-	suite, err := proof.SignatureSuites().GetSuite(proof.WorkEdSignatureType, proof.V2)
+	suite, err := proof.SignatureSuites().GetSuite(proof.JCSEdSignatureType, proof.V2)
 	assert.NoError(t, err)
 
 	signed := CompositeProofRequestInstanceChallenge{

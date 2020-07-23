@@ -17,7 +17,7 @@ import (
 
 func TestDIDDocProof(t *testing.T) {
 	ed25519KeyType := proof.Ed25519KeyType
-	signatureType := proof.WorkEdSignatureType
+	signatureType := proof.JCSEdSignatureType
 	doc, privateKey := did.GenerateDIDDoc(ed25519KeyType, signatureType)
 	pubKey := privateKey.Public().(ed25519.PublicKey)
 	ledgerDoc := DIDDoc{
@@ -84,7 +84,7 @@ func TestVerifySchemaProof(t *testing.T) {
 	var s JSONSchemaMap
 	assert.NoError(t, json.Unmarshal([]byte(testSchema), &s))
 
-	signatureType := proof.WorkEdSignatureType
+	signatureType := proof.JCSEdSignatureType
 	ed25519KeyType := proof.Ed25519KeyType
 	didDoc, privKey := GenerateLedgerDIDDoc(ed25519KeyType, signatureType)
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -130,7 +130,7 @@ func TestHashing(t *testing.T) {
 }
 
 func TestVerifyRevocationProof(t *testing.T) {
-	signatureType := proof.WorkEdSignatureType
+	signatureType := proof.JCSEdSignatureType
 	ed25519KeyType := proof.Ed25519KeyType
 	didDoc, privKey := GenerateLedgerDIDDoc(ed25519KeyType, signatureType)
 	keyRef := didDoc.PublicKey[0].ID
@@ -150,7 +150,7 @@ func TestVerifyRevocationProof(t *testing.T) {
 func TestGenericVerify(t *testing.T) {
 	// Create DID Doc and mock provider
 	ed25519KeyType := proof.Ed25519KeyType
-	signatureType := proof.WorkEdSignatureType
+	signatureType := proof.JCSEdSignatureType
 	didDoc, privKey := GenerateLedgerDIDDoc(ed25519KeyType, signatureType)
 	keyRef := didDoc.PublicKey[0].ID
 

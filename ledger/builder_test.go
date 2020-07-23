@@ -33,13 +33,13 @@ func TestVerifyDIDDocProof(t *testing.T) {
 		DID:                  id,
 		FullyQualifiedKeyRef: keyRef,
 		Signer:               signer,
-		SignatureType:        proof.WorkEdSignatureType,
+		SignatureType:        proof.JCSEdSignatureType,
 		PublicKeys:           docKeys,
 		Issuer:               id,
 	}.GenerateLedgerDIDDoc()
 	assert.NoError(t, err)
 
-	verifier := &proof.Ed25519Verifier{publicKey}
+	verifier := &proof.Ed25519Verifier{PubKey: publicKey}
 	suite, err := proof.SignatureSuites().GetSuiteForProof(ledgerDoc.GetProof())
 	assert.NoError(t, err)
 	assert.NoError(t, suite.Verify(ledgerDoc, verifier))
@@ -102,7 +102,7 @@ func TestGenerateDIDDocForIssuerWithServices(t *testing.T) {
 		DID:                  id,
 		FullyQualifiedKeyRef: keyRef,
 		Signer:               signer,
-		SignatureType:        proof.WorkEdSignatureType,
+		SignatureType:        proof.JCSEdSignatureType,
 		PublicKeys:           publicKeys,
 		Issuer:               issuer,
 		Services:             serviceDef,
@@ -130,7 +130,7 @@ func TestGenerateDIDDocForKeys(t *testing.T) {
 		DID:                  id,
 		FullyQualifiedKeyRef: keyRef,
 		Signer:               signer,
-		SignatureType:        proof.WorkEdSignatureType,
+		SignatureType:        proof.JCSEdSignatureType,
 		PublicKeys:           docKeys,
 		Issuer:               id,
 	}.GenerateLedgerDIDDoc()

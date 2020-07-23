@@ -119,7 +119,7 @@ func GenerateCompositeProofResponse(proofRequest CompositeProofRequestInstanceCh
 		},
 	}
 
-	suite, err := proof.SignatureSuites().GetSuite(proof.WorkEdSignatureType, proof.V2)
+	suite, err := proof.SignatureSuites().GetSuite(proof.JCSEdSignatureType, proof.V2)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func FulfillCriterionForVCs(criterion Criterion, variables map[string]interface{
 		filteredCred := cred
 		stripUnrequestedAttributesFromCredential(criterion, &filteredCred)
 		uid := uuid.New().String()
-		presentation, err := GeneratePresentationFromVC(filteredCred, signer, proof.WorkEdSignatureType, uid)
+		presentation, err := GeneratePresentationFromVC(filteredCred, signer, proof.JCSEdSignatureType, uid)
 		if err != nil {
 			return nil, err
 		}

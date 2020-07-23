@@ -168,17 +168,7 @@ func (m *WithoutProofMarshaler) Marshal(provable Provable) ([]byte, error) {
 	p := provable.GetProof()
 	provable.SetProof(nil)
 	defer func() { provable.SetProof(p) }()
-	b, err := json.Marshal(provable)
-	if err != nil {
-		return nil, err
-	}
-	// make sure the proof is really gone
-	var object map[string]interface{}
-	if err := json.Unmarshal(b, &object); err != nil {
-		return nil, err
-	}
-	delete(object, "proof")
-	return json.Marshal(object)
+	return json.Marshal(provable)
 }
 
 // Canonicalizer transforms a JSON byte array into its canonical form.

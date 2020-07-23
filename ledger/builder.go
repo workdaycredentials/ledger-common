@@ -123,7 +123,7 @@ func GenerateB64EncodedEd25519DIDDoc(b64EncodedPrivKey string) (string, error) {
 		DID:                  id,
 		FullyQualifiedKeyRef: signingKeyRef,
 		Signer:               signer,
-		SignatureType:        proof.WorkEdSignatureType,
+		SignatureType:        proof.JCSEdSignatureType,
 		PublicKeys:           pubKeys,
 		Issuer:               id,
 	}.GenerateLedgerDIDDoc()

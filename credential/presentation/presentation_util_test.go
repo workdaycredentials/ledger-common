@@ -31,11 +31,11 @@ func TestCreationOfPresentationFromCredentialV1(t *testing.T) {
 	signer, err := proof.NewEd25519Signer(holderSigningPrivKey, "id:work:PDNabnJyLVCpevvaGrk1LP#key-1")
 	assert.NoError(t, err)
 
-	presentation, err := GeneratePresentationFromVC(signedV1CredentialOldType.UnsignedVerifiableCredential, signer, proof.WorkEdSignatureType, id)
+	presentation, err := GeneratePresentationFromVC(signedV1CredentialOldType.UnsignedVerifiableCredential, signer, proof.JCSEdSignatureType, id)
 	assert.NoError(t, err)
 	verifyPresentationV1Cred(t, *presentation, id, nowUTC.Format(time.RFC3339))
 
-	presentation, err = GeneratePresentationFromVC(signedV1Credential.UnsignedVerifiableCredential, signer, proof.WorkEdSignatureType, id)
+	presentation, err = GeneratePresentationFromVC(signedV1Credential.UnsignedVerifiableCredential, signer, proof.JCSEdSignatureType, id)
 	assert.NoError(t, err)
 	verifyPresentationV1Cred(t, *presentation, id, nowUTC.Format(time.RFC3339))
 }

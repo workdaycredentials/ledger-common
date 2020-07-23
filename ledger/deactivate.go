@@ -34,7 +34,7 @@ func GenerateB64EncodedEd25519DeactivatedDIDDoc(b64EncodedPrivKey, b64EncDID str
 	if err != nil {
 		return "", err
 	}
-	suite, err := proof.SignatureSuites().GetSuite(proof.WorkEdSignatureType, proof.V2)
+	suite, err := proof.SignatureSuites().GetSuite(proof.JCSEdSignatureType, proof.V2)
 	if err != nil {
 		return "", err
 	}
