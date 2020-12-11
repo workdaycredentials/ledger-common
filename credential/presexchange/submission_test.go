@@ -135,6 +135,82 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		assert.Contains(t, fulfilled.PresentationSubmission.DescriptorMap, d1)
 	})
 
+	t.Run("Single credential multiple attributes request (does not match pattern)", func(t *testing.T) {
+		builder := definition.NewPresentationDefinitionBuilder()
+		builder.SetLocale(enUSLocale)
+
+		err := builder.SetLDPFormat(definition.LDPVP, []string{"JcsEd25519Signature2020"})
+		assert.NoError(t, err)
+
+		nameInput := definition.NewInputDescriptor("name_input")
+		err = nameInput.SetSchema(definition.Schema{
+			URI:     []string{nameCred.Schema.ID},
+			Name:    "Name Schema",
+			Purpose: "To get an individual's first and last name",
+		})
+		assert.NoError(t, err)
+
+		// restrict the issuer
+		issuerField := definition.NewConstraintsField([]string{"$.issuer"})
+		issuerField.SetPurpose("Must be from a known issuer")
+		err = issuerField.SetFilter(definition.Filter{
+			Type:      "string",
+			Pattern:   "known:" + nameCred.Issuer,
+			MinLength: 1,
+		})
+		assert.NoError(t, err)
+
+		// make sure the first name is there
+		firstNameField := definition.NewConstraintsField([]string{"$.credentialSubject.firstName"})
+		firstNameField.SetPurpose("We need your first name")
+		err = firstNameField.SetFilter(definition.Filter{
+			Type:      "string",
+			MinLength: 2,
+		})
+		assert.NoError(t, err)
+
+		// add all constraints
+		err = nameInput.SetConstraints(*issuerField, *firstNameField)
+		assert.NoError(t, err)
+
+		// add the name input descriptor
+		err = builder.AddInputDescriptor(*nameInput)
+		assert.NoError(t, err)
+
+		presDefHolder, err := builder.Build()
+		assert.NoError(t, err)
+		assert.NotEmpty(t, presDefHolder)
+
+		// have the requester sign the presentation definition as a presentation request
+		requesterSigner, err := proof.NewEd25519Signer(issuerPrivKey, issuerDoc.PublicKey[0].ID)
+		assert.NoError(t, err)
+
+		suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
+		assert.NoError(t, err)
+
+		presentationRequest := PresentationRequest{
+			ID:         "test-presentation-request",
+			Definition: presDefHolder.PresentationDefinition,
+		}
+		options := &proof.ProofOptions{ProofPurpose: proof.AssertionMethodPurpose}
+		err = suite.Sign(&presentationRequest, requesterSigner, options)
+		assert.NoError(t, err)
+
+		// build a signer for the cred holder
+		holderSigner, err := proof.NewEd25519Signer(holderPrivKey, holderDoc.PublicKey[0].ID)
+		assert.NoError(t, err)
+
+		// now create the presentation submission
+		presSubmission, err := NewPresentationSubmission(issuerPrivKey.Public().(ed25519.PublicKey), holderSigner, presentationRequest)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, presSubmission)
+
+		// fulfill it with the creds
+		fulfilled, err := presSubmission.FulfillPresentationRequestAsVP([]credential.VerifiableCredential{*nameCred})
+		assert.EqualError(t, err, "Key: 'PresentationSubmission.DescriptorMap' Error:Field validation for 'DescriptorMap' failed on the 'required' tag")
+		assert.Nil(t, fulfilled)
+	})
+
 	t.Run("Multiple credentials, one attribute from each request", func(t *testing.T) {
 		builder := definition.NewPresentationDefinitionBuilder()
 		builder.SetLocale(enUSLocale)
@@ -2065,8 +2141,7 @@ func TestFulfillRequirements(t *testing.T) {
 
 func TestGatherInputDescriptorsForRequirement(t *testing.T) {
 	testDescriptor := definition.InputDescriptor{
-		ID:
-		"test",
+		ID:    "test",
 		Group: []string{"A"},
 		Schema: &definition.Schema{
 			URI:  []string{"test"},

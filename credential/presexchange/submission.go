@@ -408,7 +408,24 @@ func fulfillDescriptor(descriptor definition.InputDescriptor, creds []credential
 		}
 		fulfilled = append(fulfilled, filtered...)
 	}
-	return fulfilled, nil
+
+	// maps credential to number of applicable filters
+	setOfCounters := map[string]int{}
+	for i := range fulfilled {
+		setOfCounters[fulfilled[i].CredID]++
+	}
+
+	var pos int
+	for i := range fulfilled {
+		// checks whether the number of applicable filters is equal to the number of all filters
+		// if numbers are different than we will ignore the credential
+		if setOfCounters[fulfilled[i].CredID] == len(descriptor.Constraints.Fields) {
+			fulfilled[pos] = fulfilled[i]
+			pos++
+		}
+	}
+
+	return fulfilled[:pos], nil
 }
 
 // For a given set of schema IDs and credentials, return the credentials that have been issued against the listed schema(s)
