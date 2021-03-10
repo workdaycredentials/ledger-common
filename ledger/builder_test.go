@@ -10,8 +10,8 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 var (
@@ -54,10 +54,10 @@ func TestED25519GenerateB64EncodedDIDDoc(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(didDocBytes, &doc))
 
 	// Generate did for
-	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq", doc.ID)
+	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq", doc.Metadata.ID)
 	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1", doc.PublicKey[0].ID)
 	assert.Equal(t, proof.Ed25519KeyType, doc.PublicKey[0].Type)
-	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq", doc.PublicKey[0].Controller)
+	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq", doc.PublicKey[0].Controller.String())
 	assert.Equal(t, doc.PublicKey[0].PublicKeyBase58, base58.Encode(issuerPubKey))
 }
 
@@ -69,7 +69,7 @@ func TestED25519GenerateB64EncodedDeactivatedDIDDocMobile(t *testing.T) {
 	var doc DIDDoc
 	assert.NoError(t, json.Unmarshal(didDocBytes, &doc))
 
-	b64DID := base64.StdEncoding.EncodeToString([]byte(doc.ID))
+	b64DID := base64.StdEncoding.EncodeToString([]byte(doc.Metadata.ID))
 
 	b64DeactivatedDIDDoc, _ := GenerateB64EncodedEd25519DeactivatedDIDDoc(b64EncPrivKey, b64DID)
 
@@ -79,7 +79,7 @@ func TestED25519GenerateB64EncodedDeactivatedDIDDocMobile(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(deactivatedDIDDocBytes, &deactivatedDoc))
 
 	// Generate did for
-	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq", deactivatedDoc.ID)
+	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq", deactivatedDoc.Metadata.ID)
 	assert.Equal(t, 0, len(deactivatedDoc.PublicKey))
 	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1", deactivatedDoc.DIDDoc.Proof.GetVerificationMethod())
 }
@@ -89,12 +89,12 @@ func TestGenerateDIDDocForIssuerWithServices(t *testing.T) {
 	keyRef := did.GenerateKeyID(id, did.InitialKey)
 	publicKeys := make(map[string]ed25519.PublicKey)
 	publicKeys[did.InitialKey] = issuerPubKey
-	issuer := "fooIssuer"
+	issuer := did.DID("fooIssuer")
 	schemaID := "schemaID"
 	serviceDef := []did.ServiceDef{{
 		ID:              schemaID,
 		Type:            "schema",
-		ServiceEndpoint: schemaID,
+		ServiceEndpoint: did.StringOrArray{schemaID},
 	}}
 	signer, err := proof.NewEd25519Signer(issuerPrivKey, keyRef)
 	assert.NoError(t, err)
@@ -110,8 +110,9 @@ func TestGenerateDIDDocForIssuerWithServices(t *testing.T) {
 
 	didDoc, err := input.GenerateLedgerDIDDoc()
 	assert.NoError(t, err, "Error was not expected when creating did doc")
-	assert.Equal(t, didDoc.ID, id)
-	assert.Equal(t, didDoc.UnsignedDIDDoc.PublicKey[0].Controller, issuer)
+
+	assert.Equal(t, didDoc.Metadata.ID, id.String())
+	assert.Equal(t, didDoc.PublicKey[0].Controller, issuer)
 	assert.Equal(t, didDoc.Service[0].ID, schemaID)
 	assert.Equal(t, didDoc.PublicKey[0].PublicKeyBase58, base58.Encode(issuerPubKey))
 	verifyDIDDoc(t, *didDoc.DIDDoc, issuerPubKey)
@@ -136,8 +137,8 @@ func TestGenerateDIDDocForKeys(t *testing.T) {
 	}.GenerateLedgerDIDDoc()
 
 	assert.NoError(t, err, "Error was not expected when creating id doc")
-	assert.Equal(t, ledgerDoc.ID, id)
-	assert.Equal(t, ledgerDoc.UnsignedDIDDoc.PublicKey[0].Controller, id)
+	assert.Equal(t, ledgerDoc.Metadata.ID, id.String())
+	assert.Equal(t, ledgerDoc.PublicKey[0].Controller, id)
 	assert.Nil(t, ledgerDoc.Service)
 	verifyLedgerDIDDoc(t, *ledgerDoc, issuerPubKey)
 }
@@ -185,7 +186,7 @@ func TestGenerateDeactivatedDIDDoc(t *testing.T) {
 
 	deactivatedDIDDoc, err := GenerateDeactivatedDIDDoc(signer, suite, id)
 	assert.NoError(t, err)
-	assert.Equal(t, id, deactivatedDIDDoc.ID)
+	assert.Equal(t, id.String(), deactivatedDIDDoc.Metadata.ID)
 	assert.Equal(t, id, deactivatedDIDDoc.DIDDoc.ID)
 	assert.Equal(t, 0, len(deactivatedDIDDoc.DIDDoc.PublicKey))
 
@@ -204,7 +205,7 @@ func verifyLedgerDIDDoc(t *testing.T, ledgerDoc DIDDoc, key ed25519.PublicKey) {
 	assert.NoError(t, suite.Verify(ledgerDoc.DIDDoc, verifier))
 
 	pubK1Bytes, _ := base58.Decode(ledgerDoc.PublicKey[0].PublicKeyBase58)
-	assert.Equal(t, ledgerDoc.ID, "did:work:"+base58.Encode(pubK1Bytes[:16]))
+	assert.Equal(t, ledgerDoc.Metadata.ID, "did:work:"+base58.Encode(pubK1Bytes[:16]))
 }
 
 func verifyDIDDoc(t *testing.T, didDoc did.DIDDoc, key ed25519.PublicKey) {
@@ -217,5 +218,5 @@ func verifyDIDDoc(t *testing.T, didDoc did.DIDDoc, key ed25519.PublicKey) {
 	assert.NoError(t, suite.Verify(&didDoc, verifier))
 
 	pubK1Bytes, _ := base58.Decode(didDoc.PublicKey[0].PublicKeyBase58)
-	assert.Equal(t, didDoc.ID, "did:work:"+base58.Encode(pubK1Bytes[:16]))
+	assert.Equal(t, didDoc.ID.String(), "did:work:"+base58.Encode(pubK1Bytes[:16]))
 }

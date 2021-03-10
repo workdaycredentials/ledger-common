@@ -4,7 +4,7 @@ import (
 	"github.com/mr-tron/base58"
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 func GenerateDIDDocWithContext(keyType proof.KeyType, signatureType proof.SignatureType) (*DIDDoc, ed25519.PrivateKey) {
@@ -20,11 +20,9 @@ func GenerateDIDDocWithContext(keyType proof.KeyType, signatureType proof.Signat
 	}}
 
 	doc := DIDDoc{
-		UnsignedDIDDoc: UnsignedDIDDoc{
-			SchemaContext: SchemaContext,
-			ID:            id,
-			PublicKey:     didPubKeys,
-		},
+		SchemaContext: []string{SchemaContext},
+		ID:            id,
+		PublicKey:     didPubKeys,
 	}
 
 	signer, _ := proof.NewEd25519Signer(privateKey, signingKeyRef)
@@ -47,10 +45,8 @@ func GenerateDIDDoc(keyType proof.KeyType, signatureType proof.SignatureType) (*
 	}}
 
 	doc := DIDDoc{
-		UnsignedDIDDoc: UnsignedDIDDoc{
-			ID:        id,
-			PublicKey: didPubKeys,
-		},
+		ID:        id,
+		PublicKey: didPubKeys,
 	}
 
 	signer, _ := proof.NewEd25519Signer(privateKey, signingKeyRef)

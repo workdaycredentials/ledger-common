@@ -9,10 +9,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/ledger"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 const (
@@ -394,7 +394,7 @@ func TestStringToVersion(t *testing.T) {
 func TestExtractAuthorDIDFromID(t *testing.T) {
 	id, err := ExtractSchemaAuthorDID(testSchemaID)
 	assert.NoError(t, err)
-	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq", id)
+	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq", id.String())
 }
 
 func TestExtractResourceIDFromSchemaID(t *testing.T) {

@@ -1,45 +1,65 @@
 package did
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 
 	"github.com/mr-tron/base58"
 
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
-// UnsignedDIDDoc is a W3C compliant DID Document without an embedded Proof.
-type UnsignedDIDDoc struct {
+// DID is a Decentralized Identifier conforming to https://www.w3.org/TR/did-core/#did-syntax
+type DID string
+
+// String returns the DID as a string (conforming to `fmt.Stringer`)
+func (did DID) String() string {
+	return string(did)
+}
+
+// HashCode returns the DID as a string suitable for hashing
+func (did DID) HashCode() string {
+	return string(did)
+}
+
+// URI is a string conforming to https://tools.ietf.org/html/rfc3986
+type URI = string
+
+// DIDDoc a W3C compliant signed DID Document
+type DIDDoc struct {
 	// Deprecated: left here for backward compatibility. All new DID Docs should exclude this property.
-	SchemaContext  string       `json:"@context,omitempty"`
-	ID             string       `json:"id"`
-	PublicKey      []KeyDef     `json:"publicKey"`
-	Authentication []string     `json:"authentication"`
-	Service        []ServiceDef `json:"service"`
+	SchemaContext        StringOrArray `json:"@context,omitempty"`
+	ID                   DID           `json:"id"`
+	PublicKey            []KeyDef      `json:"publicKey"`                    // Deprecated: use `VerificationMethod`
+	Authentication       []KeyRef      `json:"authentication"`               // TODO: optional
+	Service              []ServiceDef  `json:"service"`                      // TODO: optional
+	VerificationMethod   []KeyDef      `json:"verificationMethod,omitempty"` // TODO: required
+	AssertionMethod      []KeyRef      `json:"assertionMethod,omitempty"`
+	CapabilityInvocation []KeyRef      `json:"capabilityInvocation,omitempty"`
+	CapabilityDelegation []KeyRef      `json:"capabilityDelegation,omitempty"`
+	KeyAgreement         []KeyRef      `json:"keyAgreement,omitempty"`
+	AlsoKnownAs          []URI         `json:"alsoKnownAs,omitempty"`
+	Controller           StringOrArray `json:"controller,omitempty"`
+	Proof                *proof.Proof  `json:"proof,omitempty"`
 }
 
-func (u *UnsignedDIDDoc) IsEmpty() bool {
-	if u == nil {
-		return true
+func (d *DIDDoc) GetVerificationMethod() []KeyDef {
+	// Return the old PublicKey array if the (new) VerificationMethod array is empty
+	if len(d.VerificationMethod) == 0 {
+		return d.PublicKey
 	}
-	return reflect.DeepEqual(u, &UnsignedDIDDoc{})
+	return d.VerificationMethod
 }
 
-func (u *UnsignedDIDDoc) GetPublicKey(keyID string) *KeyDef {
-	for _, pubKey := range u.PublicKey {
+func (d *DIDDoc) GetPublicKey(keyID string) *KeyDef {
+	for _, pubKey := range d.PublicKey {
 		if pubKey.ID == keyID {
 			return &pubKey
 		}
 	}
 	return nil
-}
-
-// DIDDoc a W3C compliant signed DID Document
-type DIDDoc struct {
-	UnsignedDIDDoc
-	*proof.Proof `json:"proof,omitempty"`
 }
 
 func (d *DIDDoc) IsEmpty() bool {
@@ -57,12 +77,21 @@ func (d *DIDDoc) SetProof(p *proof.Proof) {
 	d.Proof = p
 }
 
-// KeyDef represents a DID public key
+type JWK struct {
+	KTY string `json:"kty"`
+	CRV string `json:"crv"`
+	X   string `json:"x"`
+	Y   string `json:"y,omitempty"`
+}
+
+// KeyDef represents a DID public key (also known as Verification Method)
 type KeyDef struct {
-	ID              string        `json:"id"`
+	ID              URI           `json:"id"`
 	Type            proof.KeyType `json:"type"`
-	Controller      string        `json:"controller,omitempty"`
-	PublicKeyBase58 string        `json:"publicKeyBase58"`
+	Controller      DID           `json:"controller,omitempty"` // TODO: required
+	PublicKeyBase58 string        `json:"publicKeyBase58,omitempty"`
+	PublicKeyJwk    *JWK          `json:"publicKeyJwk,omitempty"`
+	// TODO: verification method MAY include additional properties. NEXT-11525
 }
 
 func (k *KeyDef) IsEmpty() bool {
@@ -73,6 +102,10 @@ func (k *KeyDef) IsEmpty() bool {
 }
 
 func (k *KeyDef) GetDecodedPublicKey() ([]byte, error) {
+	if k.PublicKeyJwk != nil {
+		// TODO: handle PublicKeyJwk
+		return nil, errors.New("Not implemented: publicKeyJwk")
+	}
 	return base58.Decode(k.PublicKeyBase58)
 }
 
@@ -85,20 +118,21 @@ func (k *KeyDef) GetKeyFragment() (string, error) {
 }
 
 type ServiceDef struct {
-	ID              string `json:"id"`
-	Type            string `json:"type"`
-	ServiceEndpoint string `json:"serviceEndpoint"`
+	ID              URI         `json:"id"`
+	Type            string      `json:"type"`
+	ServiceEndpoint interface{} `json:"serviceEndpoint"` // string, array, or map
+	// TODO: service endpoint MAY include additional properties. NEXT-11525
 }
 
 // CredentialDefinition JSON Schema
 // Represents an identity that binds an issuer to a schema that allows specific issuance
 type CredentialDefinition struct {
-	CredDefDID string `json:"did"`
-	IssuerDID  string `json:"issuerDid"`
+	CredDefDID DID    `json:"did"`
+	IssuerDID  DID    `json:"issuerDid"`
 	SchemaID   string `json:"schemaId"`
 }
 
 // Struct to contain identifier for an Admin DID
 type AdminDID struct {
-	ID string `json:"id"`
+	ID DID `json:"id"`
 }

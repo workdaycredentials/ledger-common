@@ -5,18 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/decentralized-identity/presentation-exchange-implementations/pkg/definition"
 	"github.com/decentralized-identity/presentation-exchange-implementations/pkg/submission"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/ledger"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/email"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/name"
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 func TestFulfillPresentationRequest(t *testing.T) {
@@ -40,25 +37,23 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		builder.SetLocale(enUSLocale)
 
 		err := builder.SetLDPFormat(definition.LDPVP, []string{"JcsEd25519Signature2020"})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		nameInput := definition.NewInputDescriptor("name_input")
-		err = nameInput.SetSchema(definition.Schema{
-			URI:     []string{nameCred.Schema.ID},
-			Name:    "Name Schema",
-			Purpose: "To get an individual's first and last name",
+		nameInput := definition.NewInputDescriptor("name_input", "Name Schema", "To get an individual's first and last name", "")
+		err = nameInput.AddSchema(definition.Schema{
+			URI: nameCred.Schema.ID,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// restrict the issuer
 		issuerField := definition.NewConstraintsField([]string{"$.issuer"})
 		issuerField.SetPurpose("Must be from a known issuer")
 		err = issuerField.SetFilter(definition.Filter{
 			Type:      "string",
-			Pattern:   nameCred.Issuer,
+			Pattern:   nameCred.Issuer.String(),
 			MinLength: 1,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// make sure the first name is there
 		firstNameField := definition.NewConstraintsField([]string{"$.credentialSubject.firstName"})
@@ -67,7 +62,7 @@ func TestFulfillPresentationRequest(t *testing.T) {
 			Type:      "string",
 			MinLength: 2,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// make sure the last name is there
 		lastNameField := definition.NewConstraintsField([]string{"$.credentialSubject.lastName"})
@@ -76,26 +71,26 @@ func TestFulfillPresentationRequest(t *testing.T) {
 			Type:      "string",
 			MinLength: 2,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add all constraints
 		err = nameInput.SetConstraints(*issuerField, *firstNameField, *lastNameField)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add the name input descriptor
 		err = builder.AddInputDescriptor(*nameInput)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		presDefHolder, err := builder.Build()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, presDefHolder)
 
 		// have the requester sign the presentation definition as a presentation request
 		requesterSigner, err := proof.NewEd25519Signer(issuerPrivKey, issuerDoc.PublicKey[0].ID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		presentationRequest := PresentationRequest{
 			ID:         "test-presentation-request",
@@ -103,27 +98,27 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		}
 		options := &proof.ProofOptions{ProofPurpose: proof.AssertionMethodPurpose}
 		err = suite.Sign(&presentationRequest, requesterSigner, options)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// build a signer for the cred holder
 		holderSigner, err := proof.NewEd25519Signer(holderPrivKey, holderDoc.PublicKey[0].ID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// now create the presentation submission
 		presSubmission, err := NewPresentationSubmission(issuerPrivKey.Public().(ed25519.PublicKey), holderSigner, presentationRequest)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, presSubmission)
 
 		// fulfill it with the creds
 		fulfilled, err := presSubmission.FulfillPresentationRequestAsVP([]credential.VerifiableCredential{*nameCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, fulfilled)
 
 		// verify the signature
 		verifier := proof.Ed25519Verifier{PubKey: holderPrivKey.Public().(ed25519.PublicKey)}
 		v := VerifiablePresentation(*fulfilled)
 		err = suite.Verify(&v, &verifier)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// assert the three known descriptors are there
 		d1 := submission.Descriptor{
@@ -139,13 +134,11 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		builder := definition.NewPresentationDefinitionBuilder()
 		builder.SetLocale(enUSLocale)
 
-		nameInput := definition.NewInputDescriptor("name_input")
-		err := nameInput.SetSchema(definition.Schema{
-			URI:     []string{nameCred.Schema.ID},
-			Name:    "Name Schema",
-			Purpose: "To get an individual's first name",
+		nameInput := definition.NewInputDescriptor("name_input", "Name Schema", "To get an individual's first name", "")
+		err := nameInput.AddSchema(definition.Schema{
+			URI: nameCred.Schema.ID,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// make sure the first name is there
 		firstNameField := definition.NewConstraintsField([]string{"$.credentialSubject.firstName"})
@@ -154,24 +147,22 @@ func TestFulfillPresentationRequest(t *testing.T) {
 			Type:      "string",
 			MinLength: 2,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add all constraints
 		err = nameInput.SetConstraints(*firstNameField)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add the name input descriptor
 		err = builder.AddInputDescriptor(*nameInput)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add the email input descriptor
-		emailInput := definition.NewInputDescriptor("email_input")
-		err = emailInput.SetSchema(definition.Schema{
-			URI:     []string{emailCred.Schema.ID},
-			Name:    "Email Schema",
-			Purpose: "To get an individual's email",
+		emailInput := definition.NewInputDescriptor("email_input", "Email Schema", "To get an individual's email", "")
+		err = emailInput.AddSchema(definition.Schema{
+			URI: emailCred.Schema.ID,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// make sure the email is there
 		emailField := definition.NewConstraintsField([]string{"$.credentialSubject.emailAddress"})
@@ -181,27 +172,27 @@ func TestFulfillPresentationRequest(t *testing.T) {
 			Format:    "email",
 			MinLength: 3,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add all constraints
 		err = emailInput.SetConstraints(*emailField)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add the name input descriptor
 		err = builder.AddInputDescriptor(*emailInput)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Build the presentation definition
 		presDefHolder, err := builder.Build()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, presDefHolder)
 
 		// have the requester sign the presentation definition as a presentation request
 		requesterSigner, err := proof.NewEd25519Signer(issuerPrivKey, issuerDoc.PublicKey[0].ID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		presentationRequest := PresentationRequest{
 			ID:         "test-presentation-request",
@@ -209,27 +200,27 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		}
 		options := &proof.ProofOptions{ProofPurpose: proof.AssertionMethodPurpose}
 		err = suite.Sign(&presentationRequest, requesterSigner, options)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// build a signer for the cred holder
 		holderSigner, err := proof.NewEd25519Signer(holderPrivKey, holderDoc.PublicKey[0].ID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// now create the presentation submission
 		presSubmission, err := NewPresentationSubmission(issuerPrivKey.Public().(ed25519.PublicKey), holderSigner, presentationRequest)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, presSubmission)
 
 		// fulfill it with the creds
 		fulfilled, err := presSubmission.FulfillPresentationRequestAsVP([]credential.VerifiableCredential{*nameCred, *emailCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, fulfilled)
 
 		// verify the signature
 		verifier := proof.Ed25519Verifier{PubKey: holderPrivKey.Public().(ed25519.PublicKey)}
 		v := VerifiablePresentation(*fulfilled)
 		err = suite.Verify(&v, &verifier)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// make sure one of each input is returned
 		emailInputSeen, nameInputSeen := false, false
@@ -249,7 +240,7 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		for _, cred := range fulfilled.VerifiableCredential {
 			var c credential.VerifiableCredential
 			credBytes, err := json.Marshal(cred)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NoError(t, json.Unmarshal(credBytes, &c))
 
 			// if it's the name cred, do the check
@@ -267,15 +258,13 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		builder.SetLocale(enUSLocale)
 
 		err := builder.SetLDPFormat(definition.LDPVP, []string{"JcsEd25519Signature2020"})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		firstNameInput := definition.NewInputDescriptor("first_name_input")
-		err = firstNameInput.SetSchema(definition.Schema{
-			URI:     []string{nameCred.Schema.ID},
-			Name:    "Name Schema",
-			Purpose: "To get an individual's first name",
+		firstNameInput := definition.NewInputDescriptor("first_name_input", "Name Schema", "To get an individual's first name", "")
+		err = firstNameInput.AddSchema(definition.Schema{
+			URI: nameCred.Schema.ID,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// make sure the first name is there
 		firstNameField := definition.NewConstraintsField([]string{"$.credentialSubject.firstName"})
@@ -284,25 +273,23 @@ func TestFulfillPresentationRequest(t *testing.T) {
 			Type:      "string",
 			MinLength: 2,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add all constraints
 		err = firstNameInput.SetConstraints(*firstNameField)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add the first name input descriptor
 		err = builder.AddInputDescriptor(*firstNameInput)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		firstNameInput.SetConstraintsLimitDisclosure(true)
 
 		// add the last name input descriptor
-		lastNameInput := definition.NewInputDescriptor("last_name_input")
-		err = lastNameInput.SetSchema(definition.Schema{
-			URI:     []string{nameCred.Schema.ID},
-			Name:    "Name Schema",
-			Purpose: "To get an individual's last name",
+		lastNameInput := definition.NewInputDescriptor("last_name_input", "Name Schema", "To get an individual's last name", "")
+		err = lastNameInput.AddSchema(definition.Schema{
+			URI: nameCred.Schema.ID,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		lastNameField := definition.NewConstraintsField([]string{"$.credentialSubject.lastName"})
 		lastNameField.SetPurpose("We need your last name")
@@ -310,25 +297,23 @@ func TestFulfillPresentationRequest(t *testing.T) {
 			Type:      "string",
 			MinLength: 2,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add all constraints
 		err = lastNameInput.SetConstraints(*lastNameField)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add the last name input descriptor
 		err = builder.AddInputDescriptor(*lastNameInput)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		firstNameInput.SetConstraintsLimitDisclosure(true)
 
 		// add the email input descriptor
-		emailInput := definition.NewInputDescriptor("email_input")
-		err = emailInput.SetSchema(definition.Schema{
-			URI:     []string{emailCred.Schema.ID},
-			Name:    "Email Schema",
-			Purpose: "To get an individual's email",
+		emailInput := definition.NewInputDescriptor("email_input", "Email Schema", "To get an individual's email", "")
+		err = emailInput.AddSchema(definition.Schema{
+			URI: emailCred.Schema.ID,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// make sure the email is there
 		emailField := definition.NewConstraintsField([]string{"$.credentialSubject.emailAddress"})
@@ -338,28 +323,28 @@ func TestFulfillPresentationRequest(t *testing.T) {
 			Format:    "email",
 			MinLength: 3,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add all constraints
 		err = emailInput.SetConstraints(*emailField)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add the name input descriptor
 		err = builder.AddInputDescriptor(*emailInput)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		emailInput.SetConstraintsLimitDisclosure(true)
 
 		// Build the presentation definition
 		presDefHolder, err := builder.Build()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, presDefHolder)
 
 		// have the requester sign the presentation definition as a presentation request
 		requesterSigner, err := proof.NewEd25519Signer(issuerPrivKey, issuerDoc.PublicKey[0].ID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		presentationRequest := PresentationRequest{
 			ID:         "test-presentation-request",
@@ -367,27 +352,27 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		}
 		options := &proof.ProofOptions{ProofPurpose: proof.AssertionMethodPurpose}
 		err = suite.Sign(&presentationRequest, requesterSigner, options)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// build a signer for the cred holder
 		holderSigner, err := proof.NewEd25519Signer(holderPrivKey, holderDoc.PublicKey[0].ID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// now create the presentation submission
 		presSubmission, err := NewPresentationSubmission(issuerPrivKey.Public().(ed25519.PublicKey), holderSigner, presentationRequest)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, presSubmission)
 
 		// fulfill it with the creds
 		fulfilled, err := presSubmission.FulfillPresentationRequestAsVP([]credential.VerifiableCredential{*nameCred, *emailCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, fulfilled)
 
 		// verify the signature
 		verifier := proof.Ed25519Verifier{PubKey: holderPrivKey.Public().(ed25519.PublicKey)}
 		v := VerifiablePresentation(*fulfilled)
 		err = suite.Verify(&v, &verifier)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// make sure one of each input is returned
 		emailInputSeen, firstNameInputSeen, lastNameInputSeen := false, false, false
@@ -414,7 +399,7 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		for _, cred := range fulfilled.VerifiableCredential {
 			var c credential.VerifiableCredential
 			credBytes, err := json.Marshal(cred)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NoError(t, json.Unmarshal(credBytes, &c))
 
 			// if it's the name cred, do the check
@@ -429,13 +414,11 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		builder := definition.NewPresentationDefinitionBuilder()
 		builder.SetLocale(enUSLocale)
 
-		nameInput := definition.NewInputDescriptor("name_input")
-		err := nameInput.SetSchema(definition.Schema{
-			URI:     []string{nameCred.Schema.ID},
-			Name:    "Name Schema",
-			Purpose: "To get an individual's first name",
+		nameInput := definition.NewInputDescriptor("name_input", "Name Schema", "To get an individual's first name", "")
+		err := nameInput.AddSchema(definition.Schema{
+			URI: nameCred.Schema.ID,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// make sure the first name is there
 		firstNameField := definition.NewConstraintsField([]string{"$.credentialSubject.firstName"})
@@ -444,27 +427,27 @@ func TestFulfillPresentationRequest(t *testing.T) {
 			Type:      "string",
 			MinLength: 2,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add all constraints
 		err = nameInput.SetConstraints(*firstNameField)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add the name input descriptor
 		err = builder.AddInputDescriptor(*nameInput)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Build the presentation definition
 		presDefHolder, err := builder.Build()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, presDefHolder)
 
 		// have the requester sign the presentation definition as a presentation request
 		requesterSigner, err := proof.NewEd25519Signer(issuerPrivKey, issuerDoc.PublicKey[0].ID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		presentationRequest := PresentationRequest{
 			ID:         "test-presentation-request",
@@ -472,27 +455,27 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		}
 		options := &proof.ProofOptions{ProofPurpose: proof.AssertionMethodPurpose}
 		err = suite.Sign(&presentationRequest, requesterSigner, options)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// build a signer for the cred holder
 		holderSigner, err := proof.NewEd25519Signer(holderPrivKey, holderDoc.PublicKey[0].ID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// now create the presentation submission
 		presSubmission, err := NewPresentationSubmission(issuerPrivKey.Public().(ed25519.PublicKey), holderSigner, presentationRequest)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, presSubmission)
 
 		// fulfill it with the creds, second is unnecessary
 		fulfilled, err := presSubmission.FulfillPresentationRequestAsVP([]credential.VerifiableCredential{*nameCred, *emailCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, fulfilled)
 
 		// verify the signature
 		verifier := proof.Ed25519Verifier{PubKey: holderPrivKey.Public().(ed25519.PublicKey)}
 		v := VerifiablePresentation(*fulfilled)
 		err = suite.Verify(&v, &verifier)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// assert the known descriptor is there
 		d1 := submission.Descriptor{
@@ -508,13 +491,11 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		builder := definition.NewPresentationDefinitionBuilder()
 		builder.SetLocale(enUSLocale)
 
-		bigfootInput := definition.NewInputDescriptor("bad_input")
-		err := bigfootInput.SetSchema(definition.Schema{
-			URI:     []string{nameCred.Schema.ID},
-			Name:    "Bigfoot",
-			Purpose: "To get something that doesn't exist",
+		bigfootInput := definition.NewInputDescriptor("bad_input", "Bigfoot", "To get something that doesn't exist", "")
+		err := bigfootInput.AddSchema(definition.Schema{
+			URI: nameCred.Schema.ID,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// make sure the first name is there
 		heightField := definition.NewConstraintsField([]string{"$.credentialSubject.height"})
@@ -522,27 +503,27 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		err = heightField.SetFilter(definition.Filter{
 			Type: "integer",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add all constraints
 		err = bigfootInput.SetConstraints(*heightField)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// add the input descriptor
 		err = builder.AddInputDescriptor(*bigfootInput)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Build the presentation definition
 		presDefHolder, err := builder.Build()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, presDefHolder)
 
 		// have the requester sign the presentation definition as a presentation request
 		requesterSigner, err := proof.NewEd25519Signer(issuerPrivKey, issuerDoc.PublicKey[0].ID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		presentationRequest := PresentationRequest{
 			ID:         "test-presentation-request",
@@ -550,15 +531,15 @@ func TestFulfillPresentationRequest(t *testing.T) {
 		}
 		options := &proof.ProofOptions{ProofPurpose: proof.AssertionMethodPurpose}
 		err = suite.Sign(&presentationRequest, requesterSigner, options)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// build a signer for the cred holder
 		holderSigner, err := proof.NewEd25519Signer(holderPrivKey, holderDoc.PublicKey[0].ID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// now create the presentation submission
 		presSubmission, err := NewPresentationSubmission(issuerPrivKey.Public().(ed25519.PublicKey), holderSigner, presentationRequest)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, presSubmission)
 
 		// fulfill it with the creds, neither work
@@ -586,12 +567,12 @@ func TestFulfillDescriptor(t *testing.T) {
 
 	t.Run("First name descriptors fulfilled", func(t *testing.T) {
 		descriptor := definition.InputDescriptor{
-			ID: "name_input",
-			Schema: &definition.Schema{
-				URI:     []string{nameCred.Schema.ID},
-				Name:    "Name credential",
-				Purpose: "We need your name.",
-			},
+			ID:      "name_input",
+			Name:    "Name credential",
+			Purpose: "We need your name.",
+			Schema: []definition.Schema{{
+				URI: nameCred.Schema.ID,
+			}},
 			Constraints: &definition.Constraints{
 				LimitDisclosure: false,
 				Fields: []definition.Field{
@@ -605,19 +586,19 @@ func TestFulfillDescriptor(t *testing.T) {
 				},
 			},
 		}
-		fulfilled, err := fulfillDescriptor(descriptor, []credential.VerifiableCredential{*nameCred}, holderDoc.ID)
-		assert.NoError(t, err)
+		fulfilled, err := fulfillDescriptor(descriptor, []credential.VerifiableCredential{*nameCred}, holderDoc.Metadata.ID)
+		require.NoError(t, err)
 		assert.NotEmpty(t, fulfilled)
 	})
 
 	t.Run("Email descriptors fulfilled", func(t *testing.T) {
 		descriptor := definition.InputDescriptor{
-			ID: "email_input",
-			Schema: &definition.Schema{
-				URI:     []string{emailCred.Schema.ID},
-				Name:    "Email credential",
-				Purpose: "We need your email.",
-			},
+			ID:      "email_input",
+			Name:    "Email credential",
+			Purpose: "We need your email.",
+			Schema: []definition.Schema{{
+				URI: emailCred.Schema.ID,
+			}},
 			Constraints: &definition.Constraints{
 				LimitDisclosure: false,
 				Fields: []definition.Field{
@@ -632,22 +613,22 @@ func TestFulfillDescriptor(t *testing.T) {
 				},
 			},
 		}
-		fulfilled, err := fulfillDescriptor(descriptor, []credential.VerifiableCredential{*emailCred}, holderDoc.ID)
-		assert.NoError(t, err)
+		fulfilled, err := fulfillDescriptor(descriptor, []credential.VerifiableCredential{*emailCred}, holderDoc.Metadata.ID)
+		require.NoError(t, err)
 		assert.NotEmpty(t, fulfilled)
 	})
 
 	t.Run("No constraints", func(t *testing.T) {
 		descriptor := definition.InputDescriptor{
-			ID: "email_input",
-			Schema: &definition.Schema{
-				URI:     []string{emailCred.Schema.ID},
-				Name:    "Email credential",
-				Purpose: "We need your email.",
-			},
+			ID:      "email_input",
+			Name:    "Email credential",
+			Purpose: "We need your email.",
+			Schema: []definition.Schema{{
+				URI: emailCred.Schema.ID,
+			}},
 		}
-		fulfilled, err := fulfillDescriptor(descriptor, []credential.VerifiableCredential{*emailCred}, holderDoc.ID)
-		assert.NoError(t, err)
+		fulfilled, err := fulfillDescriptor(descriptor, []credential.VerifiableCredential{*emailCred}, holderDoc.Metadata.ID)
+		require.NoError(t, err)
 		assert.NotEmpty(t, fulfilled)
 		assert.Equal(t, emailCred.ID, fulfilled[0].CredID)
 	})
@@ -679,8 +660,8 @@ func TestFilterCredentialsForSchemasAndSubject(t *testing.T) {
 
 	t.Run("Both schema ids match", func(t *testing.T) {
 		schemaIDs := []string{nameCred.Schema.ID, emailCred.Schema.ID}
-		filtered, err := filterApplicableCredentials(schemaIDs, nil, []credential.VerifiableCredential{*nameCred, *emailCred}, holderDoc.ID)
-		assert.NoError(t, err)
+		filtered, err := filterApplicableCredentials(schemaIDs, nil, []credential.VerifiableCredential{*nameCred, *emailCred}, holderDoc.Metadata.ID)
+		require.NoError(t, err)
 		assert.NotEmpty(t, filtered)
 		assert.Equal(t, 2, len(filtered))
 		assert.Contains(t, filtered, *nameCred, *emailCred)
@@ -688,8 +669,8 @@ func TestFilterCredentialsForSchemasAndSubject(t *testing.T) {
 
 	t.Run("One schema id match, neither self issued", func(t *testing.T) {
 		schemaIDs := []string{nameCred.Schema.ID, emailCred.Schema.ID}
-		filtered, err := filterApplicableCredentials(schemaIDs, nil, []credential.VerifiableCredential{*nameCred, *emailCred}, holderDoc.ID)
-		assert.NoError(t, err)
+		filtered, err := filterApplicableCredentials(schemaIDs, nil, []credential.VerifiableCredential{*nameCred, *emailCred}, holderDoc.Metadata.ID)
+		require.NoError(t, err)
 		assert.NotEmpty(t, filtered)
 		assert.Equal(t, 2, len(filtered))
 		assert.Contains(t, filtered, *nameCred, *emailCred)
@@ -699,7 +680,7 @@ func TestFilterCredentialsForSchemasAndSubject(t *testing.T) {
 		schemaIDs := []string{nameCred.Schema.ID}
 		required := definition.Required
 		constraints := definition.Constraints{SubjectIsIssuer: &required}
-		filtered, err := filterApplicableCredentials(schemaIDs, &constraints, []credential.VerifiableCredential{*nameCred}, holderDoc.ID)
+		filtered, err := filterApplicableCredentials(schemaIDs, &constraints, []credential.VerifiableCredential{*nameCred}, holderDoc.Metadata.ID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "subject is issuer required")
 		assert.Empty(t, filtered)
@@ -709,15 +690,15 @@ func TestFilterCredentialsForSchemasAndSubject(t *testing.T) {
 		schemaIDs := []string{selfIssuedNameCred.Schema.ID}
 		required := definition.Required
 		constraints := definition.Constraints{SubjectIsIssuer: &required}
-		filtered, err := filterApplicableCredentials(schemaIDs, &constraints, []credential.VerifiableCredential{*selfIssuedNameCred}, holderDoc.ID)
-		assert.NoError(t, err)
+		filtered, err := filterApplicableCredentials(schemaIDs, &constraints, []credential.VerifiableCredential{*selfIssuedNameCred}, holderDoc.Metadata.ID)
+		require.NoError(t, err)
 		assert.Equal(t, filtered[0].ID, selfIssuedNameCred.ID)
 	})
 
 	t.Run("No matches", func(t *testing.T) {
 		schemaIDs := []string{"badID"}
-		filtered, err := filterApplicableCredentials(schemaIDs, nil, []credential.VerifiableCredential{*nameCred, *emailCred}, holderDoc.ID)
-		assert.NoError(t, err)
+		filtered, err := filterApplicableCredentials(schemaIDs, nil, []credential.VerifiableCredential{*nameCred, *emailCred}, holderDoc.Metadata.ID)
+		require.NoError(t, err)
 		assert.Empty(t, filtered)
 	})
 }
@@ -795,10 +776,10 @@ func TestApplyPaths(t *testing.T) {
 	t.Run("Extract issuer", func(t *testing.T) {
 		path := "$.issuer"
 		toFilter, err := applyPaths(descriptorID, []string{path}, Open, []credential.VerifiableCredential{*nameCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, toFilter)
 		assert.Equal(t, 1, len(toFilter))
-		assert.Equal(t, nameCred.Issuer, toFilter[0].pathedData)
+		assert.Equal(t, nameCred.Issuer.String(), toFilter[0].pathedData)
 	})
 
 	t.Run("Extract missing field", func(t *testing.T) {
@@ -811,36 +792,36 @@ func TestApplyPaths(t *testing.T) {
 	t.Run("Multiple good paths", func(t *testing.T) {
 		paths := []string{"$.issuer", "$.credentialSubject.id"}
 		toFilter, err := applyPaths(descriptorID, paths, Open, []credential.VerifiableCredential{*nameCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, toFilter)
 		assert.Equal(t, 2, len(toFilter))
-		assert.Equal(t, nameCred.Issuer, toFilter[0].pathedData)
+		assert.Equal(t, nameCred.Issuer.String(), toFilter[0].pathedData)
 		assert.Equal(t, nameCred.CredentialSubject[credential.SubjectIDAttribute], toFilter[1].pathedData)
 	})
 
 	t.Run("Multiple paths, one good one bad", func(t *testing.T) {
 		paths := []string{"$.issuer", "$.bad"}
 		toFilter, err := applyPaths(descriptorID, paths, Open, []credential.VerifiableCredential{*nameCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, toFilter)
 		assert.Equal(t, 1, len(toFilter))
-		assert.Equal(t, nameCred.Issuer, toFilter[0].pathedData)
+		assert.Equal(t, nameCred.Issuer.String(), toFilter[0].pathedData)
 	})
 
 	t.Run("Multiple creds, one path", func(t *testing.T) {
 		paths := []string{"$.issuer"}
 		toFilter, err := applyPaths(descriptorID, paths, Open, []credential.VerifiableCredential{*nameCred, *emailCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, toFilter)
 		assert.Equal(t, 2, len(toFilter))
-		assert.Equal(t, nameCred.Issuer, toFilter[0].pathedData)
-		assert.Equal(t, emailCred.Issuer, toFilter[1].pathedData)
+		assert.Equal(t, nameCred.Issuer.String(), toFilter[0].pathedData)
+		assert.Equal(t, emailCred.Issuer.String(), toFilter[1].pathedData)
 	})
 
 	t.Run("Multiple creds, path applies to only one", func(t *testing.T) {
 		paths := []string{"$.credentialSubject.emailAddress"}
 		toFilter, err := applyPaths(descriptorID, paths, Open, []credential.VerifiableCredential{*nameCred, *emailCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, toFilter)
 		assert.Equal(t, 1, len(toFilter))
 		// an email address contains an @ sign
@@ -875,10 +856,10 @@ func TestApplyPathsLimitingDisclosure(t *testing.T) {
 	t.Run("Extract issuer", func(t *testing.T) {
 		path := "$.issuer"
 		toFilter, err := applyPaths(descriptorID, []string{path}, Limited, []credential.VerifiableCredential{*nameCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, toFilter)
 		assert.Equal(t, 1, len(toFilter))
-		assert.Equal(t, nameCred.Issuer, toFilter[0].pathedData)
+		assert.Equal(t, nameCred.Issuer.String(), toFilter[0].pathedData)
 
 		// make sure disclosure has been limited, and only the id attribute is returned
 		_, ok := toFilter[0].cred.CredentialSubject[credential.SubjectIDAttribute]
@@ -897,10 +878,10 @@ func TestApplyPathsLimitingDisclosure(t *testing.T) {
 	t.Run("Multiple good paths", func(t *testing.T) {
 		paths := []string{"$.issuer", "$.credentialSubject.id"}
 		toFilter, err := applyPaths(descriptorID, paths, Limited, []credential.VerifiableCredential{*nameCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, toFilter)
 		assert.Equal(t, 2, len(toFilter))
-		assert.Equal(t, nameCred.Issuer, toFilter[0].pathedData)
+		assert.Equal(t, nameCred.Issuer.String(), toFilter[0].pathedData)
 		assert.Equal(t, nameCred.CredentialSubject[credential.SubjectIDAttribute], toFilter[1].pathedData)
 
 		// make sure disclosure has been limited, and only the requested attribute is returned from both
@@ -914,10 +895,10 @@ func TestApplyPathsLimitingDisclosure(t *testing.T) {
 	t.Run("Multiple paths, one good one bad", func(t *testing.T) {
 		paths := []string{"$.issuer", "$.bad"}
 		toFilter, err := applyPaths(descriptorID, paths, Limited, []credential.VerifiableCredential{*nameCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, toFilter)
 		assert.Equal(t, 1, len(toFilter))
-		assert.Equal(t, nameCred.Issuer, toFilter[0].pathedData)
+		assert.Equal(t, nameCred.Issuer.String(), toFilter[0].pathedData)
 
 		// make sure disclosure has been limited, and only the id attribute is returned
 		_, ok := toFilter[0].cred.CredentialSubject[credential.SubjectIDAttribute]
@@ -929,11 +910,11 @@ func TestApplyPathsLimitingDisclosure(t *testing.T) {
 	t.Run("Multiple creds, one path", func(t *testing.T) {
 		paths := []string{"$.issuer"}
 		toFilter, err := applyPaths(descriptorID, paths, Limited, []credential.VerifiableCredential{*nameCred, *emailCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, toFilter)
 		assert.Equal(t, 2, len(toFilter))
-		assert.Equal(t, nameCred.Issuer, toFilter[0].pathedData)
-		assert.Equal(t, emailCred.Issuer, toFilter[1].pathedData)
+		assert.Equal(t, nameCred.Issuer.String(), toFilter[0].pathedData)
+		assert.Equal(t, emailCred.Issuer.String(), toFilter[1].pathedData)
 
 		// make sure disclosure has been limited, and only the id attribute is returned from both
 		_, ok := toFilter[0].cred.CredentialSubject[credential.SubjectIDAttribute]
@@ -950,7 +931,7 @@ func TestApplyPathsLimitingDisclosure(t *testing.T) {
 	t.Run("Multiple creds, path applies to only one", func(t *testing.T) {
 		paths := []string{"$.credentialSubject.emailAddress"}
 		toFilter, err := applyPaths(descriptorID, paths, Limited, []credential.VerifiableCredential{*nameCred, *emailCred})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, toFilter)
 		assert.Equal(t, 1, len(toFilter))
 		// an email address contains an @ sign
@@ -1004,7 +985,7 @@ func TestApplyFilter(t *testing.T) {
 		}
 
 		fulfilled, err := applyFilter(filter, criteria)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, fulfilled)
 		assert.Equal(t, 1, len(fulfilled))
 	})
@@ -1023,7 +1004,7 @@ func TestApplyFilter(t *testing.T) {
 		}
 
 		fulfilled, err := applyFilter(filter, criteria)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Empty(t, fulfilled)
 	})
 
@@ -1046,7 +1027,7 @@ func TestApplyFilter(t *testing.T) {
 		}
 
 		fulfilled, err := applyFilter(filter, criteria)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, fulfilled)
 		assert.Equal(t, 2, len(fulfilled))
 	})
@@ -1070,7 +1051,7 @@ func TestApplyFilter(t *testing.T) {
 		}
 
 		fulfilled, err := applyFilter(filter, criteria)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Empty(t, fulfilled)
 	})
 }
@@ -1085,7 +1066,7 @@ func TestCalculateRequirementMinMax(t *testing.T) {
 		}
 		defaultMax := 20
 		min, max, err := calculateRequirementMinMax(requirement, defaultMax)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, defaultMax, min)
 		assert.Equal(t, defaultMax, max)
 	})
@@ -1116,7 +1097,7 @@ func TestCalculateRequirementMinMax(t *testing.T) {
 		}
 		defaultMax := 20
 		min, max, err := calculateRequirementMinMax(requirement, defaultMax)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 10, min)
 		assert.Equal(t, 10, max)
 	})
@@ -1131,7 +1112,7 @@ func TestCalculateRequirementMinMax(t *testing.T) {
 		}
 		defaultMax := 20
 		min, max, err := calculateRequirementMinMax(requirement, defaultMax)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 2, min)
 		assert.Equal(t, 20, max)
 	})
@@ -1146,7 +1127,7 @@ func TestCalculateRequirementMinMax(t *testing.T) {
 		}
 		defaultMax := 20
 		min, max, err := calculateRequirementMinMax(requirement, defaultMax)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 0, min)
 		assert.Equal(t, 2, max)
 	})
@@ -1162,7 +1143,7 @@ func TestCalculateRequirementMinMax(t *testing.T) {
 		}
 		defaultMax := 20
 		min, max, err := calculateRequirementMinMax(requirement, defaultMax)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 5, min)
 		assert.Equal(t, 7, max)
 	})
@@ -1246,13 +1227,13 @@ func TestFulfillRequirement(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Name:    "Name credential",
+				Purpose: "We need your name.",
+				Group:   []string{"A"},
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1269,12 +1250,12 @@ func TestFulfillRequirement(t *testing.T) {
 			},
 		}
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred},
 		}
 		fulfilled, err := fulfiller.fulfillRequirement(requirement)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 1, len(fulfilled))
 		assert.Equal(t, "name_input", fulfilled[0].DescriptorID)
 		assert.Equal(t, nameCred.ID, fulfilled[0].CredID)
@@ -1304,13 +1285,13 @@ func TestFulfillRequirement(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Name:    "Name credential",
+				Purpose: "We need your name.",
+				Group:   []string{"A"},
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1326,13 +1307,13 @@ func TestFulfillRequirement(t *testing.T) {
 				},
 			},
 			{
-				ID:    "name_input_two",
-				Group: []string{"B"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input_two",
+				Name:    "Name credential",
+				Purpose: "We need your name.",
+				Group:   []string{"B"},
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1349,12 +1330,12 @@ func TestFulfillRequirement(t *testing.T) {
 			},
 		}
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred},
 		}
 		fulfilled, err := fulfiller.fulfillRequirement(requirement)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 2, len(fulfilled))
 		assert.Equal(t, "name_input", fulfilled[0].DescriptorID)
 		assert.Equal(t, nameCred.ID, fulfilled[0].CredID)
@@ -1386,13 +1367,13 @@ func TestFulfillRequirement(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Name:    "Name credential",
+				Purpose: "We need your name.",
+				Group:   []string{"A"},
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1408,13 +1389,13 @@ func TestFulfillRequirement(t *testing.T) {
 				},
 			},
 			{
-				ID:    "email_input",
-				Group: []string{"B"},
-				Schema: &definition.Schema{
-					URI:     []string{emailCred.Schema.ID},
-					Name:    "Email",
-					Purpose: "We need your email",
-				},
+				ID:      "email_input",
+				Group:   []string{"B"},
+				Name:    "Email",
+				Purpose: "We need your email",
+				Schema: []definition.Schema{{
+					URI: emailCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1431,7 +1412,7 @@ func TestFulfillRequirement(t *testing.T) {
 			},
 		}
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred},
 		}
@@ -1450,13 +1431,13 @@ func TestFulfillRequirement(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Group:   []string{"A"},
+				Name:    "Name",
+				Purpose: "We need your name",
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1472,13 +1453,13 @@ func TestFulfillRequirement(t *testing.T) {
 				},
 			},
 			{
-				ID:    "email_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{emailCred.Schema.ID},
-					Name:    "Email",
-					Purpose: "We need your email",
-				},
+				ID:      "email_input",
+				Group:   []string{"A"},
+				Name:    "Email",
+				Purpose: "We need your email",
+				Schema: []definition.Schema{{
+					URI: emailCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1495,12 +1476,12 @@ func TestFulfillRequirement(t *testing.T) {
 			},
 		}
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred, *emailCred},
 		}
 		fulfilled, err := fulfiller.fulfillRequirement(requirement)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 2, len(fulfilled))
 		assert.Equal(t, "name_input", fulfilled[0].DescriptorID)
 		assert.Equal(t, nameCred.ID, fulfilled[0].CredID)
@@ -1518,13 +1499,13 @@ func TestFulfillRequirement(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Group:   []string{"A"},
+				Name:    "Name",
+				Purpose: "We need your name",
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1540,13 +1521,13 @@ func TestFulfillRequirement(t *testing.T) {
 				},
 			},
 			{
-				ID:    "email_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{emailCred.Schema.ID},
-					Name:    "Email",
-					Purpose: "We need your email",
-				},
+				ID:      "email_input",
+				Group:   []string{"A"},
+				Name:    "Email",
+				Purpose: "We need your email",
+				Schema: []definition.Schema{{
+					URI: emailCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1563,7 +1544,7 @@ func TestFulfillRequirement(t *testing.T) {
 			},
 		}
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred},
 		}
@@ -1582,13 +1563,13 @@ func TestFulfillRequirement(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Group:   []string{"A"},
+				Name:    "Name",
+				Purpose: "We need your name",
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1604,13 +1585,13 @@ func TestFulfillRequirement(t *testing.T) {
 				},
 			},
 			{
-				ID:    "email_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{emailCred.Schema.ID},
-					Name:    "Email",
-					Purpose: "We need your email",
-				},
+				ID:      "email_input",
+				Group:   []string{"A"},
+				Name:    "Email",
+				Purpose: "We need your email",
+				Schema: []definition.Schema{{
+					URI: emailCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1627,12 +1608,12 @@ func TestFulfillRequirement(t *testing.T) {
 			},
 		}
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred, *emailCred},
 		}
 		fulfilled, err := fulfiller.fulfillRequirement(requirement)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 2, len(fulfilled))
 		assert.Equal(t, "name_input", fulfilled[0].DescriptorID)
 		assert.Equal(t, nameCred.ID, fulfilled[0].CredID)
@@ -1650,13 +1631,13 @@ func TestFulfillRequirement(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Group:   []string{"A"},
+				Name:    "Name",
+				Purpose: "We need your name",
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1672,13 +1653,13 @@ func TestFulfillRequirement(t *testing.T) {
 				},
 			},
 			{
-				ID:    "email_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{emailCred.Schema.ID},
-					Name:    "Email",
-					Purpose: "We need your email",
-				},
+				ID:      "email_input",
+				Group:   []string{"A"},
+				Name:    "Email",
+				Purpose: "We need your email",
+				Schema: []definition.Schema{{
+					URI: emailCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1695,12 +1676,12 @@ func TestFulfillRequirement(t *testing.T) {
 			},
 		}
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred, *emailCred},
 		}
 		fulfilled, err := fulfiller.fulfillRequirement(requirement)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 1, len(fulfilled))
 		assert.Equal(t, "name_input", fulfilled[0].DescriptorID)
 		assert.Equal(t, nameCred.ID, fulfilled[0].CredID)
@@ -1717,13 +1698,13 @@ func TestFulfillRequirement(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Group:   []string{"A"},
+				Name:    "Name",
+				Purpose: "We need your name",
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1740,7 +1721,7 @@ func TestFulfillRequirement(t *testing.T) {
 			},
 		}
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred, *emailCred},
 		}
@@ -1789,13 +1770,13 @@ func TestFulfillRequirements(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Group:   []string{"A"},
+				Name:    "Name",
+				Purpose: "We need your name",
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1812,12 +1793,12 @@ func TestFulfillRequirements(t *testing.T) {
 			},
 		}
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred},
 		}
 		fulfilledReqs, err := fulfiller.fulfillRequirements(requirements)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 1, len(fulfilledReqs))
 		assert.Equal(t, "name_input", fulfilledReqs[0].DescriptorID)
 		assert.Equal(t, nameCred.ID, fulfilledReqs[0].CredID)
@@ -1834,13 +1815,13 @@ func TestFulfillRequirements(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Group:   []string{"A"},
+				Name:    "Name",
+				Purpose: "We need your name",
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1856,13 +1837,13 @@ func TestFulfillRequirements(t *testing.T) {
 				},
 			},
 			{
-				ID:    "email_input",
-				Group: []string{"B"},
-				Schema: &definition.Schema{
-					URI:     []string{emailCred.Schema.ID},
-					Name:    "Email",
-					Purpose: "We need your email",
-				},
+				ID:      "email_input",
+				Group:   []string{"B"},
+				Name:    "Email",
+				Purpose: "We need your email",
+				Schema: []definition.Schema{{
+					URI: emailCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1879,12 +1860,12 @@ func TestFulfillRequirements(t *testing.T) {
 			},
 		}
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred},
 		}
 		fulfilledReqs, err := fulfiller.fulfillRequirements(requirements)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 1, len(fulfilledReqs))
 		assert.Equal(t, "name_input", fulfilledReqs[0].DescriptorID)
 		assert.Equal(t, nameCred.ID, fulfilledReqs[0].CredID)
@@ -1908,13 +1889,13 @@ func TestFulfillRequirements(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Group:   []string{"A"},
+				Name:    "Name",
+				Purpose: "We need your name",
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1930,13 +1911,13 @@ func TestFulfillRequirements(t *testing.T) {
 				},
 			},
 			{
-				ID:    "email_input",
-				Group: []string{"B"},
-				Schema: &definition.Schema{
-					URI:     []string{emailCred.Schema.ID},
-					Name:    "Email",
-					Purpose: "We need your email",
-				},
+				ID:      "email_input",
+				Group:   []string{"B"},
+				Name:    "Email",
+				Purpose: "We need your email",
+				Schema: []definition.Schema{{
+					URI: emailCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -1954,12 +1935,12 @@ func TestFulfillRequirements(t *testing.T) {
 		}
 
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred, *emailCred},
 		}
 		fulfilledReqs, err := fulfiller.fulfillRequirements(requirements)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 2, len(fulfilledReqs))
 		assert.Equal(t, "name_input", fulfilledReqs[0].DescriptorID)
 		assert.Equal(t, nameCred.ID, fulfilledReqs[0].CredID)
@@ -1985,13 +1966,13 @@ func TestFulfillRequirements(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Group:   []string{"A"},
+				Name:    "Name",
+				Purpose: "We need your name",
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -2009,7 +1990,7 @@ func TestFulfillRequirements(t *testing.T) {
 		}
 
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*nameCred, *emailCred},
 		}
@@ -2029,13 +2010,13 @@ func TestFulfillRequirements(t *testing.T) {
 		}
 		descriptors := []definition.InputDescriptor{
 			{
-				ID:    "name_input",
-				Group: []string{"A"},
-				Schema: &definition.Schema{
-					URI:     []string{nameCred.Schema.ID},
-					Name:    "Name",
-					Purpose: "We need your name",
-				},
+				ID:      "name_input",
+				Group:   []string{"A"},
+				Name:    "Name",
+				Purpose: "We need your name",
+				Schema: []definition.Schema{{
+					URI: nameCred.Schema.ID,
+				}},
 				Constraints: &definition.Constraints{
 					LimitDisclosure: true,
 					Fields: []definition.Field{
@@ -2053,7 +2034,7 @@ func TestFulfillRequirements(t *testing.T) {
 		}
 
 		fulfiller := requestFulfiller{
-			responderID: holderDoc.ID,
+			responderID: holderDoc.Metadata.ID,
 			descriptors: descriptors,
 			credentials: []credential.VerifiableCredential{*emailCred},
 		}
@@ -2065,13 +2046,12 @@ func TestFulfillRequirements(t *testing.T) {
 
 func TestGatherInputDescriptorsForRequirement(t *testing.T) {
 	testDescriptor := definition.InputDescriptor{
-		ID:
-		"test",
+		ID:    "test",
 		Group: []string{"A"},
-		Schema: &definition.Schema{
-			URI:  []string{"test"},
-			Name: "test",
-		},
+		Name:  "test",
+		Schema: []definition.Schema{{
+			URI: "test",
+		}},
 	}
 
 	t.Run("multiple groups, 1 matches", func(t *testing.T) {
@@ -2087,22 +2067,22 @@ func TestGatherInputDescriptorsForRequirement(t *testing.T) {
 			{
 				ID:    "test",
 				Group: []string{"B"},
-				Schema: &definition.Schema{
-					URI:  []string{"test"},
-					Name: "test",
-				},
+				Name:  "test",
+				Schema: []definition.Schema{{
+					URI: "test",
+				}},
 			},
 			{
 				ID:    "test",
 				Group: []string{"C"},
-				Schema: &definition.Schema{
-					URI:  []string{"test"},
-					Name: "test",
-				},
+				Name:  "test",
+				Schema: []definition.Schema{{
+					URI: "test",
+				}},
 			},
 		}
 		res, err := gatherInputDescriptorsForRequirement(requirement, descriptors)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 1, len(res))
 		assert.Contains(t, res, testDescriptor)
 	})
@@ -2139,22 +2119,22 @@ func TestGatherInputDescriptorsForRequirement(t *testing.T) {
 			{
 				ID:    "test",
 				Group: []string{"B"},
-				Schema: &definition.Schema{
-					URI:  []string{"test"},
-					Name: "test",
-				},
+				Name:  "test",
+				Schema: []definition.Schema{{
+					URI: "test",
+				}},
 			},
 			{
 				ID:    "test",
 				Group: []string{"C"},
-				Schema: &definition.Schema{
-					URI:  []string{"test"},
-					Name: "test",
-				},
+				Name:  "test",
+				Schema: []definition.Schema{{
+					URI: "test",
+				}},
 			},
 		}
 		res, err := gatherInputDescriptorsForRequirement(requirement, descriptors)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 3, len(res))
 		assert.Contains(t, res, testDescriptor)
 	})
@@ -2198,102 +2178,15 @@ func TestGatherInputDescriptorsForRequirement(t *testing.T) {
 			{
 				ID:    "test",
 				Group: []string{"B"},
-				Schema: &definition.Schema{
-					URI:  []string{"test"},
-					Name: "test",
-				},
+				Name:  "test",
+				Schema: []definition.Schema{{
+					URI: "test",
+				}},
 			},
 		}
 		res, err := gatherInputDescriptorsForRequirement(requirement, descriptors)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 2, len(res))
 		assert.Contains(t, res, testDescriptor)
 	})
-}
-
-type credGenInput struct {
-	issuerPrivKey ed25519.PrivateKey
-	issuerDoc     ledger.DIDDoc
-	holderDoc     ledger.DIDDoc
-}
-
-func makeMeANameCred(t *testing.T, input credGenInput) *credential.VerifiableCredential {
-	// select a schema
-	nameSchema := name.Name
-	nameSchemaMap := ledger.JSONSchemaMap{}
-	err := json.Unmarshal([]byte(nameSchema), &nameSchemaMap)
-	assert.NoError(t, err)
-
-	// create a signer with the issuer's private key to author the schema and later the credential
-	signer, err := proof.NewEd25519Signer(input.issuerPrivKey, input.issuerDoc.PublicKey[0].ID)
-	assert.NoError(t, err)
-
-	// turn it into a ledger schema to give it an identifier
-	// here we are using the issuer as the author of the schema
-	ledgerSchema, err := ledger.GenerateLedgerSchema("Name Schema", input.issuerDoc.ID, signer, proof.JCSEdSignatureType, nameSchemaMap)
-	assert.NoError(t, err)
-
-	// choose a cred id
-	credID := uuid.New().String()
-
-	// create the credential metadata (this one doesn't expire)
-	baseRevocationURL := "https://testrevocationservice.com/"
-	metadata := credential.NewMetadataWithTimestamp(credID, input.issuerDoc.ID, ledgerSchema.ID, baseRevocationURL, time.Now())
-
-	// build the credential
-	cred, err := credential.Builder{
-		SubjectDID: input.holderDoc.ID,
-		// according to the schema, only the first and last name fields are required
-		Data: map[string]interface{}{
-			"firstName": "Genghis",
-			"lastName":  "Khan",
-		},
-		Metadata:      &metadata,
-		Signer:        signer,
-		SignatureType: proof.JCSEdSignatureType,
-	}.Build()
-
-	assert.NoError(t, err)
-	assert.NotEmpty(t, cred)
-	return cred
-}
-
-func makeMeAnEmailCred(t *testing.T, input credGenInput) (cred *credential.VerifiableCredential) {
-	// select a schema
-	emailSchema := email.Email
-	emailSchemaMap := ledger.JSONSchemaMap{}
-	err := json.Unmarshal([]byte(emailSchema), &emailSchemaMap)
-	assert.NoError(t, err)
-
-	// create a signer with the issuer's private key to author the schema and later the credential
-	signer, err := proof.NewEd25519Signer(input.issuerPrivKey, input.issuerDoc.PublicKey[0].ID)
-	assert.NoError(t, err)
-
-	// turn it into a ledger schema to give it an identifier
-	// here we are using the issuer as the author of the schema
-	ledgerSchema, err := ledger.GenerateLedgerSchema("Email Schema", input.issuerDoc.ID, signer, proof.JCSEdSignatureType, emailSchemaMap)
-	assert.NoError(t, err)
-
-	// choose a cred id
-	credID := uuid.New().String()
-
-	// create the credential metadata (this one doesn't expire)
-	baseRevocationURL := "https://testrevocationservice.com/"
-	metadata := credential.NewMetadataWithTimestamp(credID, input.issuerDoc.ID, ledgerSchema.ID, baseRevocationURL, time.Now())
-
-	// build the credential
-	cred, err = credential.Builder{
-		SubjectDID: input.holderDoc.ID,
-		// according to the schema, only the first and last name fields are required
-		Data: map[string]interface{}{
-			"emailAddress": "genghis.khan@conquering.you",
-		},
-		Metadata:      &metadata,
-		Signer:        signer,
-		SignatureType: proof.JCSEdSignatureType,
-	}.Build()
-
-	assert.NoError(t, err)
-	assert.NotEmpty(t, cred)
-	return
 }

@@ -6,37 +6,37 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/credential/presentation"
-	"github.com/workdaycredentials/ledger-common/credential/presentation/response"
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/ledger"
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/credential/presentation"
+	"go.wday.io/credentials-open-source/ledger-common/credential/presentation/response"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 // ProofRequestHolder holds both the challenge issued by the Verifier and the set of
 // proof responses that the user has selected to satisfy the request.
 type ProofRequestHolder struct {
-	SignedProofRequest    presentation.CompositeProofRequestInstanceChallenge
+	ProofRequest          presentation.CompositeProofRequestInstanceChallenge
 	ProofResponseElements map[int]presentation.FulfilledCriterion
 }
 
 // GetVerifierIdentity returns the decentralized identifier of the Verifier that issued the request.
-func (p *ProofRequestHolder) GetVerifierIdentity() string {
-	return p.SignedProofRequest.ProofRequest.Verifier
+func (p *ProofRequestHolder) GetVerifierIdentity() did.DID {
+	return p.ProofRequest.ProofRequest.Verifier
 }
 
 // GetNumberOfCriteria returns the number of data criteria requested.
 // Each criterion represents a different data request against a particular schema.
 func (p *ProofRequestHolder) GetNumberOfCriteria() int {
-	return len(p.SignedProofRequest.ProofRequest.Criteria)
+	return len(p.ProofRequest.ProofRequest.Criteria)
 }
 
 // GetCriteria returns the Criterion at a given index in the underlying Proof Request. The Criterion and the necessary
 // variables for evaluating any predicate conditions will be returned in a CriteriaHolder. An error is returned if
 // the index is outside of the range of the proof request, see GetNumberOfCriteria.
 func (p *ProofRequestHolder) GetCriteria(index int) (*presentation.CriteriaHolder, error) {
-	numberOfCriteria := len(p.SignedProofRequest.ProofRequest.Criteria)
+	numberOfCriteria := len(p.ProofRequest.ProofRequest.Criteria)
 	if index > (numberOfCriteria - 1) {
 		err := fmt.Errorf("index out of bounds %d elements in the array", numberOfCriteria)
 		return nil, err
@@ -44,13 +44,13 @@ func (p *ProofRequestHolder) GetCriteria(index int) (*presentation.CriteriaHolde
 
 	holder := presentation.CriteriaHolder{
 		Index:     index,
-		Criterion: p.SignedProofRequest.ProofRequest.Criteria[index],
-		Variables: p.SignedProofRequest.Variables,
+		Criterion: p.ProofRequest.ProofRequest.Criteria[index],
+		Variables: p.ProofRequest.ConditionVariables,
 	}
 	return &holder, nil
 }
 
-func (p *ProofRequestHolder) FulfillCriteria(criteria *presentation.CriteriaHolder, creds []credential.UnsignedVerifiableCredential, keyRef string, signingKey ed25519.PrivateKey) error {
+func (p *ProofRequestHolder) FulfillCriteria(criteria *presentation.CriteriaHolder, creds []credential.RawCredential, keyRef string, signingKey ed25519.PrivateKey) error {
 	signer, err := proof.NewEd25519Signer(signingKey, keyRef)
 	if err != nil {
 		return err
@@ -81,12 +81,12 @@ func (p *ProofRequestHolder) GenerateProofResponse(keyRef string, signingKey ed2
 	if err != nil {
 		return nil, err
 	}
-	return response.GenerateCompositeProofResponse(p.SignedProofRequest, fulfilledCriterion, signer)
+	return response.GenerateCompositeProofResponse(p.ProofRequest, fulfilledCriterion, signer)
 }
 
 func (p *ProofRequestHolder) CheckVerifierSignature(verifierDIDDoc ledger.DIDDoc) error {
-	proofReq := p.SignedProofRequest
-	verifierDID := verifierDIDDoc.ID
+	proofReq := p.ProofRequest
+	verifierDID := verifierDIDDoc.DIDDoc.ID
 	proofCreator := proofReq.ProofRequest.Verifier
 	if verifierDID != proofCreator {
 		return fmt.Errorf("DID Doc [%s] does not match Proof Request Creator [%s]", verifierDID, proofCreator)

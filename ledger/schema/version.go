@@ -6,7 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/workdaycredentials/ledger-common/ledger"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
 )
 
 const (
@@ -284,27 +285,19 @@ func incrementIntAsString(input string) (string, error) {
 
 // ExtractSchemaAuthorDID parses the schema URI (did:work:<authorDID>;id=<uuid>;version=<version>)
 // and returns the author's DID.
-func ExtractSchemaAuthorDID(schemaID string) (string, error) {
-	idRx, err := regexp.Compile(ledger.IDRxStr)
-	if err != nil {
-		return "", err
-	}
-	if !idRx.MatchString(schemaID) {
+func ExtractSchemaAuthorDID(schemaID string) (did.DID, error) {
+	if !ledger.IDRx.MatchString(schemaID) {
 		idFormatErr := IDFormatErr{schemaID}
 		return "", idFormatErr
 	}
 	didStr := schemaID[:strings.Index(schemaID, FragSep+ResourceIDPathResource)]
-	return didStr, nil
+	return did.DID(didStr), nil
 }
 
 // ExtractSchemaResourceID parses the schema URI (did:work:<authorDID>;id=<uuid>;version=<version>)
 // and returns the resource ID.
 func ExtractSchemaResourceID(schemaID string) (string, error) {
-	idRx, err := regexp.Compile(ledger.IDRxStr)
-	if err != nil {
-		return "", err
-	}
-	if !idRx.MatchString(schemaID) {
+	if !ledger.IDRx.MatchString(schemaID) {
 		idFormatErr := IDFormatErr{schemaID}
 		return "", idFormatErr
 	}
@@ -317,11 +310,7 @@ func ExtractSchemaResourceID(schemaID string) (string, error) {
 // ExtractSchemaVersionFromID parses the schema URI (did:work:<authorDID>;id=<uuid>;version=<version>)
 // and returns the schema version.
 func ExtractSchemaVersionFromID(schemaID string) (Version, error) {
-	idRx, err := regexp.Compile(ledger.IDRxStr)
-	if err != nil {
-		return Version{}, err
-	}
-	if !idRx.MatchString(schemaID) {
+	if !ledger.IDRx.MatchString(schemaID) {
 		idFormatErr := IDFormatErr{schemaID}
 		return Version{}, idFormatErr
 	}

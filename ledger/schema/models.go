@@ -3,7 +3,7 @@ package schema
 import (
 	"fmt"
 
-	"github.com/workdaycredentials/ledger-common/ledger"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
 )
 
 // wrapper around modified semantic version where only major and minor numbers are valid

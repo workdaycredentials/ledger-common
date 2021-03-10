@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/workdaycredentials/ledger-common/ledger"
-	. "github.com/workdaycredentials/ledger-common/ledger/schema"
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
+	. "go.wday.io/credentials-open-source/ledger-common/ledger/schema"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 func TestSchema_create(t *testing.T) {
@@ -69,7 +69,7 @@ func TestSchema_create(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Build a ledger schema with a name, author DID, signer, signature type, and json schema
-	ledgerSchema, err := ledger.GenerateLedgerSchema("Contact Info Schema", authorDID.ID, signer, proof.JCSEdSignatureType, schema)
+	ledgerSchema, err := ledger.GenerateLedgerSchema("Contact Info Schema", authorDID.DIDDoc.ID, signer, proof.JCSEdSignatureType, schema)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ledgerSchema)
 

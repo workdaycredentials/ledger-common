@@ -8,22 +8,23 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/credential/schema"
-	"github.com/workdaycredentials/ledger-common/ledger"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/access"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/address"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/certification"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/course"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/education"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/email"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/employment"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/involvement"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/name"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/payslip"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/phonenumber"
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/credential/schema"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/access"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/address"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/certification"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/course"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/education"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/email"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/employment"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/involvement"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/name"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/payslip"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/phonenumber"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 // This suite of tests tests the validity of different credentials against their JSON SignedMetadata
@@ -68,7 +69,7 @@ func TestCredentialSchema(t *testing.T) {
 	issuerDoc, pk := ledger.GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 	signer, err := proof.NewEd25519Signer(pk, issuerDoc.PublicKey[0].ID)
 	assert.NoError(t, err)
-	ls, err := ledger.GenerateLedgerSchema("Name", issuerDoc.ID, signer, proof.JCSEdSignatureType, s)
+	ls, err := ledger.GenerateLedgerSchema("Name", issuerDoc.DIDDoc.ID, signer, proof.JCSEdSignatureType, s)
 	assert.NoError(t, err)
 
 	baseRevocationURL := "https://testrevocationservice.com/"
@@ -76,9 +77,9 @@ func TestCredentialSchema(t *testing.T) {
 		now := time.Now()
 		expiry := now.Add(time.Hour * 24)
 		credID := uuid.New().String()
-		metadata := credential.NewMetadataWithTimestampAndExpiry(credID, issuerDoc.ID, ls.ID, baseRevocationURL, now, expiry)
+		metadata := credential.NewMetadataWithTimestampAndExpiry(credID, issuerDoc.DIDDoc.ID, ls.ID, baseRevocationURL, now, expiry)
 		cred, err := credential.Builder{
-			SubjectDID: credID,
+			SubjectDID: did.DID("did:example:" + credID),
 			Data: map[string]interface{}{
 				"firstName": "Genghis",
 			},
@@ -96,9 +97,9 @@ func TestCredentialSchema(t *testing.T) {
 	t.Run("happy path cred without expiry", func(t *testing.T) {
 		now := time.Now()
 		credID := uuid.New().String()
-		metadata := credential.NewMetadataWithTimestamp(credID, issuerDoc.ID, ls.ID, baseRevocationURL, now)
+		metadata := credential.NewMetadataWithTimestamp(credID, issuerDoc.DIDDoc.ID, ls.ID, baseRevocationURL, now)
 		cred, err := credential.Builder{
-			SubjectDID: credID,
+			SubjectDID: did.DID("did:example:" + credID),
 			Data: map[string]interface{}{
 				"firstName": "Genghis",
 			},
@@ -116,7 +117,7 @@ func TestCredentialSchema(t *testing.T) {
 	t.Run("missing metadata", func(t *testing.T) {
 		credID := uuid.New().String()
 		_, err := credential.Builder{
-			SubjectDID: credID,
+			SubjectDID: did.DID("did:example:" + credID),
 			Data: map[string]interface{}{
 				"firstName": "Genghis",
 			},
@@ -130,9 +131,9 @@ func TestCredentialSchema(t *testing.T) {
 	t.Run("missing proof", func(t *testing.T) {
 		now := time.Now()
 		credID := uuid.New().String()
-		metadata := credential.NewMetadataWithTimestamp(credID, issuerDoc.ID, ls.ID, baseRevocationURL, now)
+		metadata := credential.NewMetadataWithTimestamp(credID, issuerDoc.DIDDoc.ID, ls.ID, baseRevocationURL, now)
 		cred, err := credential.Builder{
-			SubjectDID: credID,
+			SubjectDID: did.DID("did:example:" + credID),
 			Data: map[string]interface{}{
 				"bad": "Genghis",
 			},
@@ -1020,16 +1021,16 @@ func TestIsJSON(t *testing.T) {
                 "postalCode": "94588",
                 "country": "USA"
               }`
-	assert.True(t, isJSON(json))
-	assert.True(t, isJSON(json1))
-	assert.True(t, isJSON(json2))
+	assert.True(t, IsJSON(json))
+	assert.True(t, IsJSON(json1))
+	assert.True(t, IsJSON(json2))
 
 	notJson := `"abcd": 1234`
 	notJson1 := "{abcd}"
 	notJson2 := "{abcd: 1324}"
-	assert.False(t, isJSON(notJson))
-	assert.False(t, isJSON(notJson1))
-	assert.False(t, isJSON(notJson2))
+	assert.False(t, IsJSON(notJson))
+	assert.False(t, IsJSON(notJson1))
+	assert.False(t, IsJSON(notJson2))
 }
 
 // Tests validation on ledger metadata for incorrectly formed metadata

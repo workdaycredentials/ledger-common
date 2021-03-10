@@ -3,33 +3,40 @@ package credential
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/workdaycredentials/ledger-common/ledger"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
-	"github.com/workdaycredentials/ledger-common/util/canonical"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/util/canonical"
 )
 
 const (
 	ModelVersionV1     = "1.0"
-	ModelVersionV1_1   = "1.1"
 	W3Context          = "https://www.w3.org/2018/credentials/v1"
 	Type               = "VerifiableCredential"
 	SchemaType         = "JsonSchemaValidatorWorkday2019"
 	RevocationType     = "WorkdayRevocation2020"
 	SubjectIDAttribute = "id"
+	credentialSubject  = "credentialSubject"
+	claimProofs        = "claimProofs"
 )
 
 // VerifiableCredential is a digitally signed set of claims that adhere's to the W3C Verifiable
-// Credentials data model.
+// Credentials data model. The set of claims, claim proofs, and associated metadata held
+// within a Verifiable Credential. The "claimProofs" property is unique to Workday credentials and represents
+// our implementation of attribute-level selective disclosure without Zero-Knowledge Proofs.
 type VerifiableCredential struct {
-	UnsignedVerifiableCredential
-	*proof.Proof `json:"proof,omitempty"`
+	Metadata
+	CredentialSubject map[string]interface{} `json:"credentialSubject"`
+	ClaimProofs       map[string]proof.Proof `json:"claimProofs,omitempty"`
+	*proof.Proof      `json:"proof,omitempty"`
 }
 
 func (v *VerifiableCredential) GetProof() *proof.Proof {
@@ -51,24 +58,6 @@ func (v *VerifiableCredential) IsEmpty() bool {
 func (v *VerifiableCredential) ToJSON() (string, error) {
 	bytes, err := json.Marshal(v)
 	return string(bytes), err
-}
-
-// UnsignedVerifiableCredential is the set of claims, claim proofs, and associated metadata held
-// within a Verifiable Credential, but without the outer digital signature.  The "claimProofs"
-// property is unique to Workday credentials and represents our implementation of attribute-level
-// selective disclosure without Zero-Knowledge Proofs.
-type UnsignedVerifiableCredential struct {
-	Metadata
-	CredentialSubject map[string]interface{} `json:"credentialSubject"`
-	ClaimProofs       map[string]proof.Proof `json:"claimProofs,omitempty"`
-}
-
-// IsEmpty returns true if the credential isi nil or contains no data.
-func (u *UnsignedVerifiableCredential) IsEmpty() bool {
-	if u == nil {
-		return true
-	}
-	return reflect.DeepEqual(u, &UnsignedVerifiableCredential{})
 }
 
 // Metadata is the information about the set of claims in the Verifiable Credential.
@@ -112,7 +101,7 @@ type Metadata struct {
 	// It is RECOMMENDED that the URI in the issuer or its id be one which, if de-referenced,
 	// results in a document containing machine-readable information about the issuer that can be
 	// used to verify the information expressed in the credential.
-	Issuer string `json:"issuer,omitempty"`
+	Issuer did.DID `json:"issuer,omitempty"`
 
 	// From the W3C Verifiable Credentials Data Model specification...
 	// A credential MUST have an issuanceDate property. The value of the issuanceDate property MUST
@@ -146,12 +135,13 @@ type Metadata struct {
 	// suspended or revoked.
 	CredentialStatus *CredentialStatus `json:"credentialStatus,omitempty"`
 
+	// TODO(gabe) add back when dynamic mobile model issue fixed
 	// From the W3C Verifiable Credentials Data Model specification...
 	// The nonTransferable property indicates that a verifiable credential must only be encapsulated into a verifiable
 	// presentation whose proof was issued by the credentialSubject. A verifiable presentation that contains a
 	// verifiable credential containing the nonTransferable property, whose proof creator is not the credentialSubject,
 	// is invalid.
-	NonTransferable bool `json:"nonTransferable,omitempty"`
+	// NonTransferable bool `json:"nonTransferable,omitempty"`
 }
 
 // IsEmpty returns true if the Metadata is nil or contains no data.
@@ -162,30 +152,20 @@ func (m *Metadata) IsEmpty() bool {
 	return reflect.DeepEqual(m, &Metadata{})
 }
 
-// NewMetadataWithTimestamp returns Metadata for a credential with a specified IssuanceDate.
-// Currently in Workday, the issuance date is determined by the offer date, although this is not
-// a requirement in the W3C model, and in the future we may expose this to Issuers.
-func NewMetadataWithTimestamp(id, issuer, schema, baseRevocationURL string, issuanceDate time.Time) Metadata {
-	return Metadata{
-		ModelVersion: ModelVersionV1,
-		Context:      []string{W3Context},
-		ID:           id,
-		Type:         []string{Type, util.CredentialTypeReference_v1_0},
-		Issuer:       issuer,
-		IssuanceDate: issuanceDate.Format(time.RFC3339),
-		Schema: Schema{
-			ID:   schema,
-			Type: SchemaType,
-		},
-		CredentialStatus: &CredentialStatus{
-			ID:   credentialbaseRevocationURL(baseRevocationURL, issuer, id),
-			Type: RevocationType,
-		},
-		NonTransferable: true,
+func newCredentialStatus(baseRevocationURL did.URI, issuer did.DID, id string) *CredentialStatus {
+	if baseRevocationURL == "" {
+		return nil
+	}
+	return &CredentialStatus{
+		ID:   credentialbaseRevocationURL(baseRevocationURL, issuer, id),
+		Type: RevocationType,
 	}
 }
 
-func NewMetadataWithTimestampAndExpiry(id, issuer, schema, baseRevocationURL string, issuanceDate time.Time, expiry time.Time) Metadata {
+// NewMetadataWithTimestamp returns Metadata for a credential with a specified IssuanceDate.
+// Currently in Workday, the issuance date is determined by the offer date, although this is not
+// a requirement in the W3C model, and in the future we may expose this to Issuers.
+func NewMetadataWithTimestamp(id string, issuer did.DID, schema string, baseRevocationURL did.URI, issuanceDate time.Time) Metadata {
 	return Metadata{
 		ModelVersion: ModelVersionV1,
 		Context:      []string{W3Context},
@@ -197,17 +177,31 @@ func NewMetadataWithTimestampAndExpiry(id, issuer, schema, baseRevocationURL str
 			ID:   schema,
 			Type: SchemaType,
 		},
-		ExpirationDate: expiry.Format(time.RFC3339),
-		CredentialStatus: &CredentialStatus{
-			ID:   credentialbaseRevocationURL(baseRevocationURL, issuer, id),
-			Type: RevocationType,
+		CredentialStatus: newCredentialStatus(baseRevocationURL, issuer, id),
+		// NonTransferable:  true,
+	}
+}
+
+func NewMetadataWithTimestampAndExpiry(id string, issuer did.DID, schema string, baseRevocationURL did.URI, issuanceDate time.Time, expiry time.Time) Metadata {
+	return Metadata{
+		ModelVersion: ModelVersionV1,
+		Context:      []string{W3Context},
+		ID:           id,
+		Type:         []string{Type, util.CredentialTypeReference_v1_0},
+		Issuer:       issuer,
+		IssuanceDate: issuanceDate.Format(time.RFC3339),
+		Schema: Schema{
+			ID:   schema,
+			Type: SchemaType,
 		},
-		NonTransferable: true,
+		ExpirationDate:   expiry.Format(time.RFC3339),
+		CredentialStatus: newCredentialStatus(baseRevocationURL, issuer, id),
+		// NonTransferable:  true,
 	}
 }
 
 // Deprecated: Callers should specify an issuance date when constructing Metadata.
-func NewDefaultMetadata(id, issuer, schema, baseRevocationURL string) Metadata {
+func NewDefaultMetadata(id string, issuer did.DID, schema string, baseRevocationURL did.URI) Metadata {
 	return Metadata{
 		ModelVersion: ModelVersionV1,
 		Context:      []string{W3Context},
@@ -219,11 +213,8 @@ func NewDefaultMetadata(id, issuer, schema, baseRevocationURL string) Metadata {
 			ID:   schema,
 			Type: SchemaType,
 		},
-		CredentialStatus: &CredentialStatus{
-			ID:   credentialbaseRevocationURL(baseRevocationURL, issuer, id),
-			Type: RevocationType,
-		},
-		NonTransferable: true,
+		CredentialStatus: newCredentialStatus(baseRevocationURL, issuer, id),
+		// NonTransferable:  true,
 	}
 }
 
@@ -239,7 +230,7 @@ type CredentialStatus struct {
 	Type string `json:"type"`
 }
 
-func credentialbaseRevocationURL(baseRevocationURL, issuerDID, credID string) string {
+func credentialbaseRevocationURL(baseRevocationURL did.URI, issuerDID did.DID, credID string) string {
 	var url string
 	if strings.LastIndex(baseRevocationURL, "/") == len(baseRevocationURL) {
 		url = baseRevocationURL + ledger.GenerateRevocationKey(issuerDID, credID)
@@ -261,7 +252,7 @@ func EncodeAttributeClaimDataForSigning(metadata Metadata, attribute string, val
 // include the credential metadata and claim/attribute name and value.  This can be thought of
 // as a redacted version of the credential that contains a single claim.
 func EncodeAttributeClaimDataForSigningOption(metadata Metadata, attribute string, value interface{}, canonicalMarshal bool) ([]byte, error) {
-	credential := UnsignedVerifiableCredential{
+	credential := VerifiableCredential{
 		Metadata:          metadata,
 		CredentialSubject: map[string]interface{}{attribute: value},
 	}
@@ -304,4 +295,84 @@ func (c *Claim) GetProof() *proof.Proof {
 
 func (c *Claim) SetProof(p *proof.Proof) {
 	c.Proof = p
+}
+
+// AsRawCredential creates a RawCredential that wraps a deep copy of the given credential.
+func AsRawCredential(cred VerifiableCredential) (*RawCredential, error) {
+	js, err := json.Marshal(cred)
+	if err != nil {
+		return nil, err
+	}
+	var raw RawCredential
+	if err := json.Unmarshal(js, &raw); err != nil {
+		return nil, err
+	}
+	raw.Raw = js
+	return &raw, nil
+}
+
+// RawCredential is a wrapper around a byte array that holds a credential in raw JSON format.
+// The byte array can be considered the data and the VerifiableCredential acts as a
+// view into the data. Mutations to the data must go directly through this object in order to
+// keep the raw form and the view in sync.  The purpose of this struct is to enable changes to the
+// Credential model without disrupting the processing in the mobile code (exposed through gomobile).
+type RawCredential struct {
+	VerifiableCredential
+	Raw []byte `json:"-"`
+}
+
+// Filter returns a copy of this RawCredential with only the claims (credentialSubject and
+// claimProofs) specified in the attribute set.  This is intended to support selective disclosure of
+// claims during a presentation exchange.
+func (c *RawCredential) Filter(attrSet map[string]bool) (*RawCredential, error) {
+	filteredJSON, err := filterRawJSON(c.Raw, attrSet)
+	if err != nil {
+		return nil, err
+	}
+	var filtered RawCredential
+	err = json.Unmarshal(filteredJSON, &filtered)
+	return &filtered, err
+}
+
+func filterRawJSON(credJSON []byte, attrSet map[string]bool) ([]byte, error) {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(credJSON, &raw); err != nil {
+		return nil, err
+	}
+	if err := filterCollection(credentialSubject, raw, attrSet); err != nil {
+		return nil, err
+	}
+	if err := filterCollection(claimProofs, raw, attrSet); err != nil {
+		return nil, err
+	}
+	return json.Marshal(raw)
+}
+
+func filterCollection(collection string, raw map[string]interface{}, attrSet map[string]bool) error {
+	c, ok := raw[collection]
+	if !ok {
+		return fmt.Errorf("failed to find %s", c)
+	}
+	m := c.(map[string]interface{})
+	for attr := range m {
+		if !attrSet[attr] {
+			delete(m, attr)
+		}
+	}
+	return nil
+}
+
+func (c RawCredential) MarshalJSON() ([]byte, error) {
+	js := make([]byte, len(c.Raw))
+	copy(js, c.Raw)
+	return js, nil
+}
+
+func (c *RawCredential) UnmarshalJSON(bits []byte) error {
+	if err := json.Unmarshal(bits, &c.VerifiableCredential); err != nil {
+		return err
+	}
+	c.Raw = make([]byte, len(bits))
+	copy(c.Raw, bits)
+	return nil
 }

@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 // VerifyClaim verifies the digital signature of the Claim Proof associated with the given attribute
@@ -22,11 +22,9 @@ func VerifyClaim(cred *VerifiableCredential, attribute string, publicKey ed25519
 	}
 	value := cred.CredentialSubject[attribute]
 	claim := VerifiableCredential{
-		UnsignedVerifiableCredential: UnsignedVerifiableCredential{
-			Metadata:          cred.Metadata,
-			CredentialSubject: map[string]interface{}{attribute: value},
-		},
-		Proof: &proofForAttr,
+		Metadata:          cred.Metadata,
+		CredentialSubject: map[string]interface{}{attribute: value},
+		Proof:             &proofForAttr,
 	}
 	verifier := &proof.Ed25519Verifier{PubKey: publicKey}
 	return suite.Verify(&claim, verifier)

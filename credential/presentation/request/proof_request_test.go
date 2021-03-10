@@ -8,12 +8,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/credential/presentation"
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/ledger"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/credential/presentation"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 var (
@@ -28,10 +28,10 @@ func TestExtractVerifierFromProofRequest(t *testing.T) {
 	assert.NoError(t, err)
 
 	proofReqStruct := ProofRequestHolder{
-		SignedProofRequest: challenge,
+		ProofRequest: challenge,
 	}
 	verifierIdentity := proofReqStruct.GetVerifierIdentity()
-	expectedID := "did:work:28RB9jAy9HtVet3zFhdWaM"
+	expectedID := did.DID("did:work:28RB9jAy9HtVet3zFhdWaM")
 	assert.Equal(t, expectedID, verifierIdentity)
 
 	numCriteria := proofReqStruct.GetNumberOfCriteria()
@@ -108,7 +108,7 @@ func TestCheckIfUnExpiredV1CredMatchesCriteria(t *testing.T) {
 func TestAllowedExpiredCredentialCanBeSubmitted(t *testing.T) {
 	proofReqStruct := getPopulatedProofRequest()
 	allowExpired := true
-	proofReqStruct.SignedProofRequest.ProofRequest.Criteria[0].AllowExpired = &allowExpired
+	proofReqStruct.ProofRequest.ProofRequest.Criteria[0].AllowExpired = &allowExpired
 	contactHolder, _ := proofReqStruct.GetCriteria(0)
 	expiredCred := contactV1Cred
 
@@ -147,11 +147,7 @@ func TestCanCheckIfV1CredMatchesCriteriaFailsIfCriteriaPropertyIsMissingProof(t 
 
 func TestCanFulfillCriteriaWithV1Credential(t *testing.T) {
 	proofReqStruct := getPopulatedProofRequest()
-	addressHolder, _ := proofReqStruct.GetCriteria(1)
-	addressV1MissingProperty := credential.VerifiableCredential{
-		UnsignedVerifiableCredential: credential.UnsignedVerifiableCredential{},
-	}
-	addressV1MissingProperty.UnsignedVerifiableCredential = addressV1Cred.UnsignedVerifiableCredential
+	addressV1MissingProperty := addressV1Cred
 	mapMissingValue := make(map[string]interface{})
 	for k, v := range addressV1MissingProperty.CredentialSubject {
 		if k != "postalCode" {
@@ -159,14 +155,15 @@ func TestCanFulfillCriteriaWithV1Credential(t *testing.T) {
 		}
 	}
 	addressV1MissingProperty.CredentialSubject = mapMissingValue
-	err := proofReqStruct.FulfillCriteria(addressHolder, []credential.UnsignedVerifiableCredential{addressV1MissingProperty.UnsignedVerifiableCredential}, "key-1", holderSigningPrivKey)
+	rawCredential, err := credential.AsRawCredential(addressV1MissingProperty)
+	assert.NoError(t, err)
+
+	addressHolder, _ := proofReqStruct.GetCriteria(1)
+	err = proofReqStruct.FulfillCriteria(addressHolder, []credential.RawCredential{*rawCredential}, "key-1", holderSigningPrivKey)
 	assert.Error(t, err)
 	assert.Equal(t, `required property "postalCode" not found credential "422ab006-063e-48f1-91b4-dc09dc512b40"`, err.Error())
 
-	addressV1MissingSig := credential.VerifiableCredential{
-		UnsignedVerifiableCredential: credential.UnsignedVerifiableCredential{},
-	}
-	addressV1MissingSig.UnsignedVerifiableCredential = addressV1Cred.UnsignedVerifiableCredential
+	addressV1MissingSig := addressV1Cred
 	addressV1MissingSig.Proof = addressV1Cred.Proof
 	mapMissingSigValue := make(map[string]proof.Proof)
 	for k, v := range addressV1MissingSig.ClaimProofs {
@@ -175,56 +172,60 @@ func TestCanFulfillCriteriaWithV1Credential(t *testing.T) {
 		}
 	}
 	addressV1MissingSig.ClaimProofs = mapMissingSigValue
-	err = proofReqStruct.FulfillCriteria(addressHolder, []credential.UnsignedVerifiableCredential{addressV1MissingSig.UnsignedVerifiableCredential}, "key-1", holderSigningPrivKey)
+	rawCredential, err = credential.AsRawCredential(addressV1MissingSig)
+	assert.NoError(t, err)
+	err = proofReqStruct.FulfillCriteria(addressHolder, []credential.RawCredential{*rawCredential}, "key-1", holderSigningPrivKey)
 	assert.Error(t, err)
 	assert.Equal(t, `required property "city" did not have claim proof signature in "422ab006-063e-48f1-91b4-dc09dc512b40"`, err.Error())
-
 }
 
 func TestCanFulfilCriteriaWithV1CredentialFailsIfCredentialIsMissingProperties(t *testing.T) {
 	proofReqStruct := getPopulatedProofRequest()
+	rawCredential, err := credential.AsRawCredential(contactV1Cred)
+	assert.NoError(t, err)
 	contactHolder, _ := proofReqStruct.GetCriteria(0)
-	err := proofReqStruct.FulfillCriteria(contactHolder, []credential.UnsignedVerifiableCredential{contactV1Cred.UnsignedVerifiableCredential}, "key-1", holderSigningPrivKey)
+	err = proofReqStruct.FulfillCriteria(contactHolder, []credential.RawCredential{*rawCredential}, "key-1", holderSigningPrivKey)
 	assert.NoError(t, err)
 	assert.Len(t, proofReqStruct.ProofResponseElements, 1)
 }
 
 func TestCanGenerateProofRespString(t *testing.T) {
 	proofReqStruct := getPopulatedProofRequest()
-	contactHolder, _ := proofReqStruct.GetCriteria(0)
 	var contactCred credential.VerifiableCredential
 	err := json.Unmarshal([]byte(contactUnversionedCred), &contactCred)
 	assert.NoError(t, err)
 
-	_ = proofReqStruct.FulfillCriteria(contactHolder, []credential.UnsignedVerifiableCredential{contactCred.UnsignedVerifiableCredential}, "did:work:junk#key-1", holderSigningPrivKey)
+	rawCredential, err := credential.AsRawCredential(contactCred)
+	assert.NoError(t, err)
+
+	contactHolder, _ := proofReqStruct.GetCriteria(0)
+	_ = proofReqStruct.FulfillCriteria(contactHolder, []credential.RawCredential{*rawCredential}, "did:work:junk#key-1", holderSigningPrivKey)
 
 	addHolder, _ := proofReqStruct.GetCriteria(1)
 	var addressCred credential.VerifiableCredential
 	err = json.Unmarshal([]byte(addressCred1), &addressCred)
-	_ = proofReqStruct.FulfillCriteria(addHolder, []credential.UnsignedVerifiableCredential{addressCred.UnsignedVerifiableCredential}, "did:work:junk#key-1", holderSigningPrivKey)
-}
-
-func credStringToCreds(creds ...string) []credential.UnsignedVerifiableCredential {
-	var res []credential.UnsignedVerifiableCredential
-	for _, c := range creds {
-		var tempCred credential.VerifiableCredential
-		json.Unmarshal([]byte(c), &tempCred)
-		res = append(res, tempCred.UnsignedVerifiableCredential)
-	}
-	return res
+	rawCredential, err = credential.AsRawCredential(addressCred)
+	assert.NoError(t, err)
+	_ = proofReqStruct.FulfillCriteria(addHolder, []credential.RawCredential{*rawCredential}, "did:work:junk#key-1", holderSigningPrivKey)
 }
 
 func TestCanGenerateProofRespStringWithV1Credentials(t *testing.T) {
-	subjectDID := "did:work:51wzdn5u7nPp944zpDo7b2"
+	subjectDID := did.DID("did:work:51wzdn5u7nPp944zpDo7b2")
 	proofReqStruct := getPopulatedProofRequest()
 	keyRef := did.GenerateKeyID(subjectDID, did.InitialKey)
 
+	rawCredential, err := credential.AsRawCredential(contactV1Cred)
+	assert.NoError(t, err)
+
 	contactHolder, _ := proofReqStruct.GetCriteria(0)
-	err := proofReqStruct.FulfillCriteria(contactHolder, []credential.UnsignedVerifiableCredential{contactV1Cred.UnsignedVerifiableCredential}, keyRef, holderSigningPrivKey)
+	err = proofReqStruct.FulfillCriteria(contactHolder, []credential.RawCredential{*rawCredential}, keyRef, holderSigningPrivKey)
 	assert.NoError(t, err)
 	addHolder, _ := proofReqStruct.GetCriteria(1)
 
-	err = proofReqStruct.FulfillCriteria(addHolder, []credential.UnsignedVerifiableCredential{addressV1Cred.UnsignedVerifiableCredential}, keyRef, holderSigningPrivKey)
+	rawCredential, err = credential.AsRawCredential(addressV1Cred)
+	assert.NoError(t, err)
+
+	err = proofReqStruct.FulfillCriteria(addHolder, []credential.RawCredential{*rawCredential}, keyRef, holderSigningPrivKey)
 	assert.NoError(t, err)
 
 	generatedProofResponse, err := proofReqStruct.GenerateProofResponse(keyRef, holderSigningPrivKey)
@@ -244,7 +245,7 @@ func TestCanGenerateProofRespStringWithV1Credentials(t *testing.T) {
 			for _, cred := range p.Credentials {
 				did, ok := cred.CredentialSubject[credential.SubjectIDAttribute]
 				assert.True(t, ok, "subject DID should be available per credentials")
-				assert.Equal(t, did, subjectDID)
+				assert.Equal(t, did, subjectDID.String())
 			}
 		}
 	}
@@ -278,19 +279,23 @@ func TestHolderSchemaRangeMatchesFiltersCorrectly(t *testing.T) {
 
 func TestSchemaRangeHolderCanFulfillCriteria(t *testing.T) {
 	versionedProofRequest := getPopulatedProofReqWithSchemaRange()
+
+	rawCredential, err := credential.AsRawCredential(contactV1Cred)
+	assert.NoError(t, err)
+
 	contactHolder, _ := versionedProofRequest.GetCriteria(0)
-	err := versionedProofRequest.FulfillCriteria(contactHolder, []credential.UnsignedVerifiableCredential{contactV1Cred.UnsignedVerifiableCredential}, "did:work:junk#key-1", holderSigningPrivKey)
+	err = versionedProofRequest.FulfillCriteria(contactHolder, []credential.RawCredential{*rawCredential}, "did:work:junk#key-1", holderSigningPrivKey)
 	assert.NoError(t, err)
 }
 
 func getPopulatedProofRequest() ProofRequestHolder {
 	var challenge presentation.CompositeProofRequestInstanceChallenge
 	_ = json.Unmarshal([]byte(proofReqChallenge), &challenge)
-	return ProofRequestHolder{SignedProofRequest: challenge}
+	return ProofRequestHolder{ProofRequest: challenge}
 }
 
 func getPopulatedProofReqWithSchemaRange() ProofRequestHolder {
-	return ProofRequestHolder{SignedProofRequest: proofReqChallengeWithSchemaRange}
+	return ProofRequestHolder{ProofRequest: proofReqChallengeWithSchemaRange}
 }
 
 func Test_isV1Credential(t *testing.T) {
@@ -325,21 +330,22 @@ func Test_isV1Credential(t *testing.T) {
 	}
 }
 
-func Test_CheckVerifierSignatureWorkEd25519(t *testing.T) {
+func Test_CheckVerifierSignature(t *testing.T) {
 	// Create a Verifier DIDDoc
 	signatureType := proof.JCSEdSignatureType
 	verifierDIDDoc, privKey := did.GenerateDIDDoc(proof.Ed25519KeyType, signatureType)
 	ledgerDIDDoc := &ledger.DIDDoc{
 		Metadata: &ledger.Metadata{
-			ID: verifierDIDDoc.ID,
+			ID: verifierDIDDoc.ID.String(),
 		},
 		DIDDoc: verifierDIDDoc,
 	}
 
 	// Get test Proof Request and set Verifier
 	testProofRequestHolder := getPopulatedProofRequest()
-	unsigned := testProofRequestHolder.SignedProofRequest.UnsignedCompositeProofRequestInstanceChallenge
-	unsigned.ProofRequest.Verifier = verifierDIDDoc.ID
+	request := testProofRequestHolder.ProofRequest
+	request.ProofRequest.Verifier = verifierDIDDoc.ID
+	request.SetProof(nil)
 
 	// Create proof over Proof Request
 	signingKeyRef := did.GenerateKeyID(verifierDIDDoc.ID, did.InitialKey)
@@ -349,15 +355,12 @@ func Test_CheckVerifierSignatureWorkEd25519(t *testing.T) {
 	suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
 	assert.NoError(t, err)
 
-	signed := presentation.CompositeProofRequestInstanceChallenge{
-		UnsignedCompositeProofRequestInstanceChallenge: unsigned,
-	}
 	options := &proof.ProofOptions{ProofPurpose: proof.AssertionMethodPurpose}
-	err = suite.Sign(&signed, signer, options)
+	err = suite.Sign(&request, signer, options)
 	assert.NoError(t, err)
 
 	holder := &ProofRequestHolder{
-		SignedProofRequest:    signed,
+		ProofRequest:          request,
 		ProofResponseElements: testProofRequestHolder.ProofResponseElements,
 	}
 

@@ -23,14 +23,15 @@ import (
 // If not set, running mage will list available targets
 // var Default = Build
 
-var (
+const (
 	Go = "go"
+	ModMode = "-mod=vendor"
 )
 
 // Build builds the library.
 func Build() error {
 	fmt.Println("Building...")
-	return sh.Run(Go, "build", "./...")
+	return sh.Run(Go, "build", ModMode, "./...")
 }
 
 // Clean deletes any build artifacts.
@@ -50,7 +51,7 @@ func runTests(extraTestArgs ...string) error {
 	if mg.Verbose() {
 		args = append(args, "-v")
 	}
-	args = append(args, "-race", "-tags", "unit")
+	args = append(args, ModMode, "-race", "-tags", "unit")
 	args = append(args, extraTestArgs...)
 	args = append(args, "./...")
 	testEnv := map[string]string{

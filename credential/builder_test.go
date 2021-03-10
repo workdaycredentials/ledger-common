@@ -12,33 +12,39 @@ import (
 	"golang.org/x/crypto/ed25519"
 	"gopkg.in/go-playground/validator.v9"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 func TestCredentialBuilder_BuildCredential(t *testing.T) {
 	now := time.Now()
 
-	inputs := []struct{
+	inputs := []struct {
 		// The type of signature to be used in the proof.
 		SignatureType proof.SignatureType
 		// We've always used Ed25519 keys, but we've called them by a variety of names.
-		KeyType       proof.KeyType
+		KeyType proof.KeyType
 		// Set to zero time for no expiration.
-		Expiry        time.Time
+		Expiry time.Time
+		// Proof version for backwards compatibility
+		ProofVersion proof.ModelVersion
 	}{
 		// Ed25519
 		{SignatureType: proof.Ed25519KeySignatureType, KeyType: proof.Ed25519KeyType, Expiry: time.Time{}},
 		{SignatureType: proof.Ed25519KeySignatureType, KeyType: proof.Ed25519KeyType, Expiry: now.Add(10 * time.Second)},
+		{SignatureType: proof.Ed25519KeySignatureType, KeyType: proof.Ed25519KeyType, Expiry: now.Add(10 * time.Second), ProofVersion: proof.V1},
+
 		// WorkEd25519
 		{SignatureType: proof.WorkEdSignatureType, KeyType: proof.WorkEdKeyType, Expiry: time.Time{}},
 		{SignatureType: proof.WorkEdSignatureType, KeyType: proof.WorkEdKeyType, Expiry: now.Add(10 * time.Second)},
+		{SignatureType: proof.WorkEdSignatureType, KeyType: proof.WorkEdKeyType, Expiry: now.Add(10 * time.Second), ProofVersion: proof.V1},
+
 		// JCSEd25519
 		{SignatureType: proof.JCSEdSignatureType, KeyType: proof.Ed25519KeyType, Expiry: time.Time{}},
 		{SignatureType: proof.JCSEdSignatureType, KeyType: proof.Ed25519KeyType, Expiry: now.Add(10 * time.Second)},
 	}
 
-	withOrWithout := func (v bool) string {
+	withOrWithout := func(v bool) string {
 		if v {
 			return "with"
 		}
@@ -51,7 +57,7 @@ func TestCredentialBuilder_BuildCredential(t *testing.T) {
 			pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
 			require.NoError(t, err)
 
-			credID, issuerDID, schemaID := uuid.New().String(), uuid.New().String(), uuid.New().String()
+			credID, issuerDID, schemaID := uuid.New().String(), did.DID("did:example:"+uuid.New().String()), uuid.New().String()
 			baseRevocationURL := "https://testrevocationservice.com/"
 
 			var metadata Metadata
@@ -61,7 +67,7 @@ func TestCredentialBuilder_BuildCredential(t *testing.T) {
 				metadata = NewMetadataWithTimestampAndExpiry(credID, issuerDID, schemaID, baseRevocationURL, now, input.Expiry)
 			}
 
-			id := uuid.New().String()
+			id := did.DID("did:example:" + uuid.New().String())
 			signer, err := proof.NewEd25519Signer(privKey, did.GenerateKeyID(issuerDID, did.InitialKey))
 			require.NoError(t, err)
 
@@ -73,6 +79,7 @@ func TestCredentialBuilder_BuildCredential(t *testing.T) {
 				Metadata:      &metadata,
 				Signer:        signer,
 				SignatureType: input.SignatureType,
+				ProofVersion:  input.ProofVersion,
 			}
 
 			cred, err := builder.Build()
@@ -82,12 +89,12 @@ func TestCredentialBuilder_BuildCredential(t *testing.T) {
 			assert.Equal(t, input.SignatureType, cred.Proof.Type)
 
 			expectedClaims := map[string]interface{}{
-				SubjectIDAttribute: builder.SubjectDID,
+				SubjectIDAttribute: builder.SubjectDID.String(),
 				"pet":              "fido",
 			}
 			assert.Equal(t, expectedClaims, cred.CredentialSubject)
 
-			for k, _ := range expectedClaims {
+			for k := range expectedClaims {
 				require.NotNil(t, cred.ClaimProofs[k])
 				assert.Equal(t, input.SignatureType, cred.ClaimProofs[k].Type)
 			}

@@ -54,20 +54,20 @@ const (
 	AssertionMethodPurpose ProofPurpose = "assertionMethod"
 )
 
-// Proof represents a verifiable digital signature.
+// Proof represents a verifiable digital signature conforming to https://www.w3.org/TR/vc-data-model/#proofs-signatures
 type Proof struct {
 	// Created is the datetime (RFC3339) when the signature was generated.
-	Created string `json:"created,omitempty"`
+	Created string `json:"created,omitempty"` // required
 
 	// ProofPurpose is the specific intent for the proof, the reason why an entity created it.
 	// Acts as a safeguard to prevent the proof from being misused for a purpose other than the one it was intended for.
-	ProofPurpose ProofPurpose `json:"proofPurpose,omitempty"`
+	ProofPurpose ProofPurpose `json:"proofPurpose,omitempty"` // required
 
 	// Deprecated: Creator is a reference to the public key used to verify this signature.
 	Creator string `json:"creator,omitempty"`
 
 	// VerificationMethod is a reference to the public key used to verify this signature.
-	VerificationMethod string `json:"verificationMethod,omitempty"`
+	VerificationMethod string `json:"verificationMethod,omitempty"` // required
 
 	// Deprecated (use challenge): Nonce is a random value (e.g. uuid) used to prevent replay attacks.
 	Nonce string `json:"nonce,omitempty"`
@@ -76,7 +76,7 @@ type Proof struct {
 	SignatureValue string `json:"signatureValue,omitempty"`
 
 	// Type is the algorithm used to generate and verify the signature.
-	Type SignatureType `json:"type,omitempty"`
+	Type SignatureType `json:"type"`
 
 	// JWS represents an optional field for an encoded JSON Web Signature
 	JWS string `json:"jws,omitempty"`

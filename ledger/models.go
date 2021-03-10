@@ -8,14 +8,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util/canonical"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util/canonical"
 )
 
 // Models for ledger objects and how they will be stored
 
-// Type, Model Version, and ID should always be present
+// Type, Model ModelVersion, and ID should always be present
 // Depending on the model object, the remainder of the fields may be optional.
 // This should be enforced by the platform and smart contracts.
 type Metadata struct {
@@ -23,7 +23,7 @@ type Metadata struct {
 	ModelVersion string       `json:"modelVersion"`
 	ID           string       `json:"id"`
 	Name         string       `json:"name,omitempty"`
-	Author       string       `json:"author,omitempty"`
+	Author       did.DID      `json:"author,omitempty"`
 	Authored     string       `json:"authored,omitempty"`
 	Proof        *proof.Proof `json:"proof,omitempty"`
 }
@@ -105,11 +105,11 @@ func (r *Revocation) IsEmpty() bool {
 // Revocation //
 
 type UnsignedRevocation struct {
-	ID           string `json:"id"`
-	CredentialID string `json:"credentialId,omitempty"`
-	IssuerDID    string `json:"issuerId,omitempty"`
-	ReasonCode   int    `json:"reason,omitempty"`
-	Revoked      string `json:"revoked,omitempty"`
+	ID           string  `json:"id"`
+	CredentialID string  `json:"credentialId,omitempty"`
+	IssuerDID    did.DID `json:"issuerId,omitempty"`
+	ReasonCode   int     `json:"reason,omitempty"`
+	Revoked      string  `json:"revoked,omitempty"`
 }
 
 func (u *UnsignedRevocation) IsEmpty() bool {
@@ -204,7 +204,7 @@ func (j JSONSchemaMap) ToJSON() string {
 	return string(bytes)
 }
 
-func GenerateSchemaID(author, version string) string {
+func GenerateSchemaID(author did.DID, version string) string {
 	return fmt.Sprintf("%s;id=%s;version=%s", author, uuid.New().String(), version)
 }
 

@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 // Simple de/serialization tests to verify the shape of the json objects
@@ -106,19 +106,17 @@ func TestLedgerDIDDoc(t *testing.T) {
 			},
 		},
 		DIDDoc: &did.DIDDoc{
-			UnsignedDIDDoc: did.UnsignedDIDDoc{
-				ID: "did:work:6sYe1y3zXhmyrBkgHgAgaq",
-				PublicKey: []did.KeyDef{
-					{
-						ID:              "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1",
-						Type:            "WorkEd25519VerificationKey2020",
-						Controller:      "did:work:6sYe1y3zXhmyrBkgHgAgaq",
-						PublicKeyBase58: "4CcKDtU1JNGi8U4D8Rv9CHzfmF7xzaxEAPFA54eQjRHF",
-					},
+			ID: "did:work:6sYe1y3zXhmyrBkgHgAgaq",
+			PublicKey: []did.KeyDef{
+				{
+					ID:              "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1",
+					Type:            "WorkEd25519VerificationKey2020",
+					Controller:      "did:work:6sYe1y3zXhmyrBkgHgAgaq",
+					PublicKeyBase58: "4CcKDtU1JNGi8U4D8Rv9CHzfmF7xzaxEAPFA54eQjRHF",
 				},
-				Authentication: nil,
-				Service:        nil,
 			},
+			Authentication: nil,
+			Service:        nil,
 			Proof: &proof.Proof{
 				Created:            "2018-01-01T00:00:00+00:0",
 				VerificationMethod: "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1",
@@ -587,7 +585,7 @@ func TestLedgerMetadataSchema(t *testing.T) {
 	assert.Equal(t, "1.0", schema.ModelVersion)
 	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq;id=ea691feb8e4537b9bb5d2b5d5bb984;version=1.0", schema.ID)
 	assert.Equal(t, "Name", schema.Name)
-	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq", schema.Author)
+	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq", schema.Author.String())
 	assert.Equal(t, "2018-01-01T00:00:00+00:00", schema.Authored)
 	assert.Equal(t, "2019-08-20T20:45:57Z", schema.Proof.Created)
 	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq#key-1", schema.Proof.GetVerificationMethod())

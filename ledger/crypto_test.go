@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 func TestDIDDocProof(t *testing.T) {
@@ -24,7 +24,7 @@ func TestDIDDocProof(t *testing.T) {
 		Metadata: &Metadata{
 			Type:         util.DIDDocTypeReference_v1_0,
 			ModelVersion: util.Version_1_0,
-			ID:           doc.ID,
+			ID:           doc.ID.String(),
 			Author:       doc.PublicKey[0].Controller,
 			Authored:     time.Now().UTC().Format(time.RFC3339),
 		},
@@ -45,7 +45,7 @@ func TestDIDDocProof(t *testing.T) {
 	// Validate using methods on did doc
 	assert.NoError(t, didDoc.ValidateProof())
 
-	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.ID: didDoc}}
+	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.Metadata.ID: didDoc}}
 	assert.NoError(t, didDoc.Validate(context.Background(), provider.GetDIDDoc))
 }
 
@@ -95,9 +95,9 @@ func TestVerifySchemaProof(t *testing.T) {
 		Metadata: &Metadata{
 			Type:         util.SchemaTypeReference_v1_0,
 			ModelVersion: util.Version_1_0,
-			ID:           GenerateSchemaID(didDoc.ID, "1.0"),
+			ID:           GenerateSchemaID(didDoc.DIDDoc.ID, "1.0"),
 			Name:         "Name",
-			Author:       didDoc.ID,
+			Author:       didDoc.DIDDoc.ID,
 			Authored:     now,
 		},
 		JSONSchema: &JSONSchema{Schema: s},
@@ -114,7 +114,7 @@ func TestVerifySchemaProof(t *testing.T) {
 	assert.NoError(t, suite.Verify(schema, verifier))
 
 	// Validate using method on schema
-	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.ID: didDoc}}
+	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.Metadata.ID: didDoc}}
 	assert.NoError(t, schema.ValidateProof(context.Background(), provider.GetDIDDoc))
 	assert.NoError(t, schema.ValidateStatic())
 }
@@ -122,7 +122,7 @@ func TestVerifySchemaProof(t *testing.T) {
 // Revocation //
 
 func TestHashing(t *testing.T) {
-	var signingDID = "did:work:UpguDp5Sq4py71M9mqKHJA"
+	var signingDID = did.DID("did:work:UpguDp5Sq4py71M9mqKHJA")
 
 	key := GenerateRevocationKey(signingDID, CredentialID)
 	assert.Equal(t, "GjqBiRAsdSbZgUKB2AtMWYyhrs7WtNH3eoAvQ6qY7q2v", key)
@@ -137,11 +137,11 @@ func TestVerifyRevocationProof(t *testing.T) {
 	signer, err := proof.NewEd25519Signer(privKey, keyRef)
 	assert.NoError(t, err)
 
-	revocation, err := GenerateLedgerRevocation(CredentialID, didDoc.ID, signer, signatureType)
+	revocation, err := GenerateLedgerRevocation(CredentialID, didDoc.DIDDoc.ID, signer, signatureType)
 	assert.NoError(t, err)
 
 	// Validate using methods on revocation
-	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.ID: didDoc}}
+	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.Metadata.ID: didDoc}}
 	assert.NoError(t, revocation.ValidateProof(context.Background(), provider.GetDIDDoc))
 	assert.NoError(t, revocation.ValidateStatic())
 }
@@ -153,7 +153,7 @@ func TestGenericVerify(t *testing.T) {
 	didDoc, privKey := GenerateLedgerDIDDoc(ed25519KeyType, signatureType)
 	keyRef := didDoc.PublicKey[0].ID
 
-	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.ID: didDoc}}
+	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.Metadata.ID: didDoc}}
 
 	signer, err := proof.NewEd25519Signer(privKey, keyRef)
 	assert.NoError(t, err)

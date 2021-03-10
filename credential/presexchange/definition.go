@@ -3,9 +3,11 @@ package presexchange
 import (
 	"github.com/decentralized-identity/presentation-exchange-implementations/pkg/definition"
 
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
+// PresentationRequest: an instance of a presentation definition, looking to be formalized in
+// the W3C as a "Verifiable Request". May be expanded to include any arbitrary metadata.
 type PresentationRequest struct {
 	ID         string
 	Definition definition.PresentationDefinition

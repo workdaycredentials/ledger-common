@@ -149,7 +149,7 @@ func (cv credentialValue) Eval(scope Scope) value {
 	// case cv.Metadata == "type":
 	// 	return scope.Credential.Metadata.Type
 	case cv.Metadata == "issuer":
-		return fromString(cv.Metadata, scope.Credential.Metadata.Issuer)
+		return fromString(cv.Metadata, scope.Credential.Metadata.Issuer.String())
 	case cv.Metadata == "issuanceDate":
 		return fromString(cv.Metadata, scope.Credential.Metadata.IssuanceDate)
 	case cv.Metadata == "credentialSchema.id":

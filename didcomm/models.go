@@ -1,5 +1,7 @@
 package didcomm
 
+import "go.wday.io/credentials-open-source/ledger-common/did"
+
 // Implementation based on https://github.com/hyperledger/aries-rfcs/tree/master/features/0023-did-exchange
 
 const (
@@ -24,13 +26,13 @@ type Exchange struct {
 	Type            []string    `json:"@type"`
 	Thread          Thread      `json:"~thread,omitempty"`
 	Label           string      `json:"label,omitempty"`
-	ServiceEndpoint string      `json:"serviceEndpoint,omitempty"`
+	ServiceEndpoint did.URI     `json:"serviceEndpoint,omitempty"`
 	KID             string      `json:"kid,omitempty"`
-	DID             string      `json:"did,omitempty"`
+	DID             did.DID     `json:"did,omitempty"`
 	Attachment      Attachment  `json:"did_doc~attach,omitempty"`
-	LogoURL         string      `json:"logoUrl,omitempty"`
+	LogoURL         did.URI     `json:"logoUrl,omitempty"`
 	ConnectionName  string      `json:"connectionName,omitempty"`
-	ContactURL      string      `json:"contactUrl,omitempty"`
+	ContactURL      did.URI     `json:"contactUrl,omitempty"`
 	ProblemCode     ProblemCode `json:"problemCode,omitempty"`
 	Explain         string      `json:"explain,omitempty"`
 }
@@ -80,22 +82,22 @@ func (jws *JWS) SetKID(kid string) {
 type ExchangeInvitationInput struct {
 	AdditionalContexts []string
 	Label              string
-	KID                string `validate:"required"`
-	ServiceEndpoint    string `validate:"required"`
-	LogoURL            string `validate:"required"`
-	ConnectionName     string `validate:"required"`
-	ContactURL         string `validate:"required"`
+	KID                string  `validate:"required"`
+	ServiceEndpoint    did.URI `validate:"required"`
+	LogoURL            did.URI `validate:"required"`
+	ConnectionName     string  `validate:"required"`
+	ContactURL         did.URI `validate:"required"`
 }
 
 type ExchangeRequestResponseInput struct {
 	AdditionalContexts []string
 	Label              string
-	DID                string `validate:"required"`
-	LogoURL            string `validate:"required"`
-	ConnectionName     string `validate:"required"`
-	ContactURL         string `validate:"required"`
-	ParentThreadID     string `validate:"required"`
-	AttachmentData     Data   `validate:"required"`
+	DID                did.DID `validate:"required"`
+	LogoURL            did.URI `validate:"required"`
+	ConnectionName     string  `validate:"required"`
+	ContactURL         did.URI `validate:"required"`
+	ParentThreadID     string  `validate:"required"`
+	AttachmentData     Data    `validate:"required"`
 }
 
 type ExchangeCompleteInput struct {

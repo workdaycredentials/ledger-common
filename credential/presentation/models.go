@@ -1,9 +1,10 @@
 package presentation
 
 import (
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/credential/presentation/conditions"
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/credential/presentation/conditions"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 // Presentation is a cryptographically signed set of Verifiable Credentials that are returned
@@ -12,8 +13,13 @@ import (
 // revealing the entire credential. The current structure does not allow for whole, signed
 // credentials, like one would find in the W3C Verifiable Credentials Data Model.
 type Presentation struct {
-	UnsignedPresentation
-	Proof []*proof.Proof `json:"proof,omitempty"`
+	Context      []string                   `json:"@context"`
+	ID           string                     `json:"id"`
+	Type         []string                   `json:"type"`
+	ModelVersion string                     `json:"modelVersion,omitempty"`
+	Created      string                     `json:"created"`
+	Credentials  []credential.RawCredential `json:"verifiableCredential"`
+	Proof        []*proof.Proof             `json:"proof,omitempty"`
 }
 
 // These methods assume a single proof.
@@ -33,18 +39,6 @@ func (p *Presentation) SetProof(pr *proof.Proof) {
 		p.Proof = make([]*proof.Proof, 1)
 	}
 	p.Proof[0] = pr
-}
-
-// UnsignedPresentation is a set of Verifiable Credentials that will be returned in response to a
-// Proof Request.  Each claim in a Verifiable Credential is signed using a Claim Proof; however,
-// the overall set of credentials is unsigned.
-type UnsignedPresentation struct {
-	Context      []string                                  `json:"@context"`
-	ID           string                                    `json:"id"`
-	Type         []string                                  `json:"type"`
-	ModelVersion string                                    `json:"modelVersion,omitempty"`
-	Created      string                                    `json:"created"`
-	Credentials  []credential.UnsignedVerifiableCredential `json:"verifiableCredential"`
 }
 
 // /////////// Platform use only /////////////
@@ -67,7 +61,7 @@ type Criterion struct {
 }
 
 type Issuers struct {
-	DIDs []string `json:"dids,omitempty"`
+	DIDs []did.DID `json:"dids,omitempty"`
 }
 
 // SchemaReq identifies a schema and defines the collection of attributes that are being requested
@@ -76,7 +70,7 @@ type Issuers struct {
 type SchemaReq struct {
 	// deprecated
 	SchemaID           string         `json:"id"`
-	AuthorDID          string         `json:"did,omitempty"`
+	AuthorDID          did.DID        `json:"did,omitempty"`
 	ResourceIdentifier string         `json:"resource,omitempty"`
 	SchemaVersionRange string         `json:"version,omitempty"`
 	Attributes         []AttributeReq `json:"attributes"`
@@ -102,7 +96,7 @@ type PlatformProofRequestMetadata struct {
 	Name   string `json:"name"`
 	// TODO add client id
 	// ClientID	string `json:"clientId`
-	CallbackURL string `json:"callbackURL"`
+	CallbackURL did.URI `json:"callbackURL"`
 }
 
 type ProofReqRespMetadata struct {
@@ -121,17 +115,12 @@ type CompositeProofRequestRecordDataHolder struct {
 	CompositeProofRequest CompositeProofRequestRecord `json:"compositeProofRequest"`
 }
 
-type UnsignedCompositeProofRequestInstanceChallenge struct {
-	ProofRequestInstanceID string                            `json:"proofRequestInstanceId"`
-	ProofResponseURL       string                            `json:"proofURL"`
-	ProofRequest           *CompositeProofRequest            `json:"proofRequest"`
-	SupportingCredentials  []credential.VerifiableCredential `json:"supportingCredentials,omitempty"`
-	Variables              map[string]interface{}            `json:"variables,omitempty"`
-}
-
 type CompositeProofRequestInstanceChallenge struct {
-	UnsignedCompositeProofRequestInstanceChallenge
-	Proof *proof.Proof `json:"proof,omitempty"`
+	ProofRequestInstanceID string                 `json:"proofRequestInstanceId"`
+	ProofResponseURL       string                 `json:"proofURL"`
+	ProofRequest           *CompositeProofRequest `json:"proofRequest"`
+	ConditionVariables     map[string]interface{} `json:"variables,omitempty"`
+	Proof                  *proof.Proof           `json:"proof,omitempty"`
 }
 
 func (c *CompositeProofRequestInstanceChallenge) GetProof() *proof.Proof {
@@ -146,7 +135,7 @@ type CompositeProofRequest struct {
 	ProofReqRespMetadata
 	Name        string      `json:"name"`
 	Description string      `json:"description"`
-	Verifier    string      `json:"verifier"`
+	Verifier    did.DID     `json:"verifier"`
 	Criteria    []Criterion `json:"criteria"`
 }
 
@@ -161,19 +150,15 @@ type CompositeProofRequestRecord struct {
 // Submission
 
 type ProofResponseSubmission struct {
-	ProofRequestInstanceId string         `json:"proofRequestInstanceId"`
+	ProofRequestInstanceID string         `json:"proofRequestInstanceId"`
 	Presentations          []Presentation `json:"Presentations"`
 }
 
-type UnsignedCompositeProofResponseSubmission struct {
+type CompositeProofResponseSubmission struct {
 	ProofReqRespMetadata
 	ProofRequestInstanceID string               `json:"proofRequestInstanceId"`
 	FulfilledCriteria      []FulfilledCriterion `json:"FulfilledCriteria"`
-}
-
-type CompositeProofResponseSubmission struct {
-	UnsignedCompositeProofResponseSubmission
-	Proof []*proof.Proof `json:"proof,omitempty"`
+	Proof                  []*proof.Proof       `json:"proof,omitempty"`
 }
 
 // These methods assume a single proof.
@@ -239,11 +224,11 @@ func (c *CriteriaHolder) GetMinCreds() int {
 
 // CanFulfill checks whether a cred can satisfy a request
 func (c *CriteriaHolder) CanFulfill(cred credential.VerifiableCredential) bool {
-	return CheckVCMatchesCriterion(c.Criterion, cred.UnsignedVerifiableCredential, c.Variables) == nil
+	return CheckVCMatchesCriterion(c.Criterion, cred, c.Variables) == nil
 }
 
 // GetAuthorDID returns the schema author's decentralized identifier.
-func (c *CriteriaHolder) GetAuthorDID() string {
+func (c *CriteriaHolder) GetAuthorDID() did.DID {
 	return c.Criterion.Schema.AuthorDID
 }
 

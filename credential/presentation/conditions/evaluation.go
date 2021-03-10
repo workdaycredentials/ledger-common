@@ -3,7 +3,7 @@ package conditions
 import (
 	"github.com/pkg/errors"
 
-	"github.com/workdaycredentials/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
 )
 
 type Evaler interface {
@@ -12,7 +12,7 @@ type Evaler interface {
 
 // Scope represents all of the context needed to evaluate the condition.
 type Scope struct {
-	Credential     credential.UnsignedVerifiableCredential
+	Credential     credential.VerifiableCredential
 	VariableValues map[string]interface{}
 }
 

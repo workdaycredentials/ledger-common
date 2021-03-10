@@ -12,12 +12,11 @@ import (
 	"github.com/decentralized-identity/presentation-exchange-implementations/pkg/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/xeipuuv/gojsonschema"
 
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/ledger/schema"
-	"github.com/workdaycredentials/ledger-common/proof"
-	utils "github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	utils "go.wday.io/credentials-open-source/ledger-common/util"
 
 	"github.com/PaesslerAG/jsonpath"
 )
@@ -148,7 +147,7 @@ func (ps PresentationSubmission) FulfillPresentationRequestAsVP(creds []credenti
 	vpBuilder.AddVerifiableCredentials(fulfilledCreds...)
 
 	// See which credentials fulfill the request and build the response
-	builder := submission.NewPresentationSubmissionBuilder()
+	builder := submission.NewPresentationSubmissionBuilder(ps.request.Definition.ID)
 	builder.SetLocale(enUSLocale)
 
 	// Add descriptors to the builder for each fulfilled credential
@@ -371,7 +370,7 @@ func calculateRequirementMinMax(requirement definition.SubmissionRequirement, de
 // For a given input descriptors and set of credentials, return the criteria that fulfill the descriptors
 func fulfillDescriptor(descriptor definition.InputDescriptor, creds []credential.VerifiableCredential, responderID string) ([]fulfilledCriterion, error) {
 	// first filter the credentials based on the schemas associated with the descriptors & consider subject restrictions
-	credsForSchema, err := filterApplicableCredentials(descriptor.Schema.URI, descriptor.Constraints, creds, responderID)
+	credsForSchema, err := filterApplicableCredentials(getSchemaIDs(descriptor.Schema), descriptor.Constraints, creds, responderID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not filter credentials for descriptor: %s", descriptor.ID)
 	}
@@ -435,7 +434,7 @@ func filterApplicableCredentials(schemaIDs []string, constraints *definition.Con
 					return nil, errors.Errorf("subject is holder required and subject (responder)<%s> not equal to holder<%s>", responderID, subjectID)
 				}
 				// the credential must be self attested
-				if subjectIsIssuerRequired && subjectID != cred.Issuer {
+				if subjectIsIssuerRequired && subjectID.(string) != cred.Issuer.String() {
 					return nil, errors.Errorf("subject is issuer required and subject<%s> not equal to issuer<%s>", subjectID, cred.Issuer)
 				}
 			}
@@ -469,6 +468,9 @@ func subjectConstraints(constraints definition.Constraints) (subjectIsIssuerRequ
 func applyPaths(descriptorID string, paths []string, disclosure Disclosure, creds []credential.VerifiableCredential) ([]criterionToFilter, error) {
 	var res []criterionToFilter
 	for _, cred := range creds {
+		if cred.IsEmpty() {
+			continue
+		}
 		for _, path := range paths {
 			// apply path to credential
 			pathed, err := applyPath(cred, path)
@@ -511,14 +513,12 @@ func toCriterion(descriptorID string, path string, pathed interface{}, cred cred
 		logrus.Warn("cred is malformed: does not contain \"id\" attribute proof, omitting...")
 	}
 	filteredCred := credential.VerifiableCredential{
-		UnsignedVerifiableCredential: credential.UnsignedVerifiableCredential{
-			Metadata: cred.Metadata,
-			CredentialSubject: map[string]interface{}{
-				credential.SubjectIDAttribute: subject,
-			},
-			ClaimProofs: map[string]proof.Proof{
-				credential.SubjectIDAttribute: subjectProof,
-			},
+		Metadata: cred.Metadata,
+		CredentialSubject: map[string]interface{}{
+			credential.SubjectIDAttribute: subject,
+		},
+		ClaimProofs: map[string]proof.Proof{
+			credential.SubjectIDAttribute: subjectProof,
 		},
 	}
 
@@ -562,6 +562,16 @@ func toCriterion(descriptorID string, path string, pathed interface{}, cred cred
 	}, nil
 }
 
+// get all schema ids from schema definitions
+// TODO(gabe) handle required schemas
+func getSchemaIDs(schemas []definition.Schema) []string {
+	var ids []string
+	for _, s := range schemas {
+		ids = append(ids, s.URI)
+	}
+	return ids
+}
+
 // turn a cred into its generic (interface) form for applying a json path, return the result
 func applyPath(cred credential.VerifiableCredential, path string) (interface{}, error) {
 	credBytes, err := json.Marshal(cred)
@@ -581,16 +591,16 @@ func applyFilter(filter definition.Filter, criteria []criterionToFilter) ([]fulf
 		logrus.WithError(err).Error("Could not build criteria filter")
 		return nil, err
 	}
+	filterJSONSchema := string(filterBytes)
 	var fulfilled []fulfilledCriterion
-	filterSchema := gojsonschema.NewStringLoader(string(filterBytes))
 	for _, criterion := range criteria {
 		dataBytes, err := json.Marshal(criterion.pathedData)
 		if err != nil {
 			return nil, err
 		}
-		data := gojsonschema.NewStringLoader(string(dataBytes))
+		dataJSON := string(dataBytes)
 		// validate the data against the filter
-		if err := schema.ValidateWithJSONLoader(filterSchema, data); err == nil {
+		if err := schema.Validate(filterJSONSchema, dataJSON); err == nil {
 			fulfilled = append(fulfilled, fulfilledCriterion{
 				DescriptorID: criterion.descriptorID,
 				CredID:       criterion.cred.ID,

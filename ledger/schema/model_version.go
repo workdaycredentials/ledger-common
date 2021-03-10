@@ -8,8 +8,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/xeipuuv/gojsonschema"
 
-	"github.com/workdaycredentials/ledger-common/ledger"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas"
 )
 
 type VersionInfo struct {
@@ -95,7 +95,7 @@ func InRangeInclusive(version string, lower string, upper string) (bool, error) 
 	return true, nil
 }
 
-// Version logic
+// ModelVersion logic
 
 // Store all currently supported versions in reverse priority (ascending) order
 var versions = [...]VersionInfo{Version0, Version1}
@@ -148,14 +148,14 @@ func ValidateLedgerSchemaV1(document interface{}) error {
 	if err != nil {
 		return err
 	}
-	metadataLoader := gojsonschema.NewStringLoader(schemaString)
+	schemaLoader := gojsonschema.NewStringLoader(schemaString)
 	metadataJSONBytes, err := json.Marshal(&documentTyped.Metadata)
 	if err != nil {
-		logrus.WithError(err).Error("Unable to marshal meta s")
+		logrus.WithError(err).Error("Unable to marshal metadata for schema")
 		return err
 	}
 	metadataJSONLoader := gojsonschema.NewStringLoader(string(metadataJSONBytes))
-	if err = ValidateWithJSONLoader(metadataLoader, metadataJSONLoader); err != nil {
+	if err = ValidateWithJSONLoader(schemaLoader, metadataJSONLoader); err != nil {
 		logrus.WithError(err).Error("Unable to validate provided metadata for schema")
 		return err
 	}

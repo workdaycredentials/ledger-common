@@ -8,8 +8,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/xeipuuv/gojsonschema"
 
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/ledger"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
 )
 
 type InvalidSchemaError struct {
@@ -23,9 +23,9 @@ func (err InvalidSchemaError) Error() string {
 // Validate exists to hide gojsonschema logic within this file
 // it is the entry-point to validation logic, requiring the caller pass in valid json strings for each argument
 func Validate(schema, document string) error {
-	if !isJSON(schema) {
+	if !IsJSON(schema) {
 		return fmt.Errorf("schema is not valid json: %s", schema)
-	} else if !isJSON(document) {
+	} else if !IsJSON(document) {
 		return fmt.Errorf("document is not valid json: %s", document)
 	}
 	return ValidateWithJSONLoader(gojsonschema.NewStringLoader(schema), gojsonschema.NewStringLoader(document))
@@ -116,7 +116,7 @@ func ValidateSchemaRequest(document interface{}, version string) error {
 }
 
 // True if string is valid JSON, false otherwise
-func isJSON(str string) bool {
+func IsJSON(str string) bool {
 	var js json.RawMessage
 	return json.Unmarshal([]byte(str), &js) == nil
 }

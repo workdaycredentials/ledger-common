@@ -1,13 +1,14 @@
 package request
 
 import (
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/credential/presentation"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/credential/presentation"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
-var unsignedProofReaChallengeWithSchemaRange = presentation.UnsignedCompositeProofRequestInstanceChallenge{
+var proofReqChallengeWithSchemaRange = presentation.CompositeProofRequestInstanceChallenge{
 	ProofRequestInstanceID: "93d90cba-eb20-41ca-93ee-2d030dda0b60",
 	ProofResponseURL:       "https://responseendppint.com/path",
 	ProofRequest: &presentation.CompositeProofRequest{
@@ -19,7 +20,7 @@ var unsignedProofReaChallengeWithSchemaRange = presentation.UnsignedCompositePro
 				Description: "Contact Information",
 				Reason:      "Send information regarding your application",
 				Issuers: presentation.Issuers{
-					DIDs: []string{
+					DIDs: []did.DID{
 						"did:work:PyBScGDehBULWHoZJC7Efk",
 						"did:work:W4Qi2D1DpBZig513ztvCFC",
 						"did:work:7SWNtygraxEPqNKhuWpw8f",
@@ -41,10 +42,6 @@ var unsignedProofReaChallengeWithSchemaRange = presentation.UnsignedCompositePro
 			},
 		},
 	},
-}
-
-var proofReqChallengeWithSchemaRange = presentation.CompositeProofRequestInstanceChallenge{
-	UnsignedCompositeProofRequestInstanceChallenge: unsignedProofReaChallengeWithSchemaRange,
 }
 
 var proofReqChallenge = `{
@@ -158,27 +155,26 @@ var proofReqChallenge = `{
 }`
 
 var contactV1Cred = credential.VerifiableCredential{
-	UnsignedVerifiableCredential: credential.UnsignedVerifiableCredential{
-		Metadata: credential.Metadata{
-			ModelVersion: util.Version_1_0,
-			Context:      []string{"https://www.w3.org/2018/credentials/v1"},
-			ID:           "422ab006-063e-48f1-91b4-dc09dc512b40",
-			Type:         []string{"VerifiableCredential"},
-			Issuer:       "did:work:PyBScGDehBULWHoZJC7Efk",
-			IssuanceDate: "2019-03-28T11:11:49.456858506Z",
-			Schema: credential.Schema{
-				ID:   "did:work:6xLyHVb7Fzdq5tcou3y3LL;id=1234-5678-5432;version=1.1",
-				Type: "ContactSchema",
-			},
+	Metadata: credential.Metadata{
+		ModelVersion: util.Version_1_0,
+		Context:      []string{"https://www.w3.org/2018/credentials/v1"},
+		ID:           "422ab006-063e-48f1-91b4-dc09dc512b40",
+		Type:         []string{"VerifiableCredential"},
+		Issuer:       "did:work:PyBScGDehBULWHoZJC7Efk",
+		IssuanceDate: "2019-03-28T11:11:49.456858506Z",
+		Schema: credential.Schema{
+			ID:   "did:work:6xLyHVb7Fzdq5tcou3y3LL;id=1234-5678-5432;version=1.1",
+			Type: "ContactSchema",
 		},
-		CredentialSubject: map[string]interface{}{"emailAddress": "scott.mangino@crawdad.com", credential.SubjectIDAttribute: "did:work:51wzdn5u7nPp944zpDo7b2"},
-		ClaimProofs: map[string]proof.Proof{"emailAddress": {
-			Type:               "WorkEd25519Signature2020",
-			Created:            "2019-01-21T17:49:18Z",
-			VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
-			Nonce:              "2019-01-21T17:49:18Z",
-			SignatureValue:     "Junk1u8jwdwDXjymFDduMJtJVTYWQ5qEz4HhVTjWT9WmEj9wabK1PHwhdRaNqUrD91VADWCBikQPVfH4aVkWRrM",
-		}},
+	},
+	CredentialSubject: map[string]interface{}{"emailAddress": "scott.mangino@crawdad.com", credential.SubjectIDAttribute: "did:work:51wzdn5u7nPp944zpDo7b2"},
+	ClaimProofs: map[string]proof.Proof{"emailAddress": {
+		Type:               "WorkEd25519Signature2020",
+		Created:            "2019-01-21T17:49:18Z",
+		VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
+		Nonce:              "2019-01-21T17:49:18Z",
+		SignatureValue:     "Junk1u8jwdwDXjymFDduMJtJVTYWQ5qEz4HhVTjWT9WmEj9wabK1PHwhdRaNqUrD91VADWCBikQPVfH4aVkWRrM",
+	},
 	},
 	Proof: &proof.Proof{
 		Type:               "WorkEd25519Signature2020",
@@ -220,71 +216,69 @@ var contactUnversionedCred = `{
 }`
 
 var addressV1Cred = credential.VerifiableCredential{
-	UnsignedVerifiableCredential: credential.UnsignedVerifiableCredential{
-		Metadata: credential.Metadata{
-			ModelVersion: util.Version_1_0,
-			Context:      []string{"https://www.w3.org/2018/credentials/v1"},
-			ID:           "422ab006-063e-48f1-91b4-dc09dc512b40",
-			Type:         []string{"VerifiableCredential"},
-			Issuer:       "did:work:28RB9jAy9HtVet3zFhdWaM",
-			IssuanceDate: "2019-03-28T11:11:49.456858506Z",
-			Schema: credential.Schema{
-				ID:   "did:work:DvRUw55c9dDkkHgA2PW2Wi",
-				Type: "AddressSchema",
-			},
+	Metadata: credential.Metadata{
+		ModelVersion: util.Version_1_0,
+		Context:      []string{"https://www.w3.org/2018/credentials/v1"},
+		ID:           "422ab006-063e-48f1-91b4-dc09dc512b40",
+		Type:         []string{"VerifiableCredential"},
+		Issuer:       "did:work:28RB9jAy9HtVet3zFhdWaM",
+		IssuanceDate: "2019-03-28T11:11:49.456858506Z",
+		Schema: credential.Schema{
+			ID:   "did:work:DvRUw55c9dDkkHgA2PW2Wi",
+			Type: "AddressSchema",
 		},
-		CredentialSubject: map[string]interface{}{
-			"city":                        "San Francisco",
-			"country":                     "United States of America",
-			"postalCode":                  "CA 94117",
-			"state":                       "California",
-			"street1":                     "940 Grove St",
-			"street2":                     "Steiner St",
-			credential.SubjectIDAttribute: "did:work:51wzdn5u7nPp944zpDo7b2",
+	},
+	CredentialSubject: map[string]interface{}{
+		"city":                        "San Francisco",
+		"country":                     "United States of America",
+		"postalCode":                  "CA 94117",
+		"state":                       "California",
+		"street1":                     "940 Grove St",
+		"street2":                     "Steiner St",
+		credential.SubjectIDAttribute: "did:work:51wzdn5u7nPp944zpDo7b2",
+	},
+	ClaimProofs: map[string]proof.Proof{
+		"city": {
+			Type:               "WorkEd25519Signature2020",
+			Created:            "2019-01-21T17:49:18Z",
+			VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
+			Nonce:              "badnonce",
+			SignatureValue:     "Junk1pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
 		},
-		ClaimProofs: map[string]proof.Proof{
-			"city": {
-				Type:               "WorkEd25519Signature2020",
-				Created:            "2019-01-21T17:49:18Z",
-				VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
-				Nonce:              "badnonce",
-				SignatureValue:     "Junk1pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
-			},
-			"country": {
-				Type:               "WorkEd25519Signature2020",
-				Created:            "2019-01-21T17:49:18Z",
-				VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
-				Nonce:              "badnonce",
-				SignatureValue:     "Junk2pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
-			},
-			"postalCode": {
-				Type:               "WorkEd25519Signature2020",
-				Created:            "2019-01-21T17:49:18Z",
-				VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
-				Nonce:              "badnonce",
-				SignatureValue:     "Junk3pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
-			},
-			"state": {
-				Type:               "WorkEd25519Signature2020",
-				Created:            "2019-01-21T17:49:18Z",
-				VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
-				Nonce:              "badnonce",
-				SignatureValue:     "Junk4pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
-			},
-			"street1": {
-				Type:               "WorkEd25519Signature2020",
-				Created:            "2019-01-21T17:49:18Z",
-				VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
-				Nonce:              "badnonce",
-				SignatureValue:     "Junk5pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
-			},
-			"street2": {
-				Type:               "WorkEd25519Signature2020",
-				Created:            "2019-01-21T17:49:18Z",
-				VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
-				Nonce:              "badnonce",
-				SignatureValue:     "Junk6pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
-			},
+		"country": {
+			Type:               "WorkEd25519Signature2020",
+			Created:            "2019-01-21T17:49:18Z",
+			VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
+			Nonce:              "badnonce",
+			SignatureValue:     "Junk2pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
+		},
+		"postalCode": {
+			Type:               "WorkEd25519Signature2020",
+			Created:            "2019-01-21T17:49:18Z",
+			VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
+			Nonce:              "badnonce",
+			SignatureValue:     "Junk3pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
+		},
+		"state": {
+			Type:               "WorkEd25519Signature2020",
+			Created:            "2019-01-21T17:49:18Z",
+			VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
+			Nonce:              "badnonce",
+			SignatureValue:     "Junk4pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
+		},
+		"street1": {
+			Type:               "WorkEd25519Signature2020",
+			Created:            "2019-01-21T17:49:18Z",
+			VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
+			Nonce:              "badnonce",
+			SignatureValue:     "Junk5pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
+		},
+		"street2": {
+			Type:               "WorkEd25519Signature2020",
+			Created:            "2019-01-21T17:49:18Z",
+			VerificationMethod: "did:work:28RB9jAy9HtVet3zFhdWaM#key-1",
+			Nonce:              "badnonce",
+			SignatureValue:     "Junk6pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
 		},
 	},
 	Proof: &proof.Proof{
@@ -396,56 +390,54 @@ var addressCred1 = `{
 }`
 
 var paySlipV1Cred1 = credential.VerifiableCredential{
-	UnsignedVerifiableCredential: credential.UnsignedVerifiableCredential{
-		Metadata: credential.Metadata{
-			ModelVersion: util.Version_1_0,
-			Context:      []string{"https://www.w3.org/2018/credentials/v1"},
-			ID:           "422ab006-063e-48f1-91b4-dc09dc512b40",
-			Type:         []string{"VerifiableCredential"},
-			Issuer:       "did:work:74Rr1UctAUoXPXfAyAXgav",
-			IssuanceDate: "2019-03-28T11:11:49.456858506Z",
-			Schema: credential.Schema{
-				ID:   "did:work:6BYw7U4u2PBG2u4jfup9Yp",
-				Type: "ContactSchema",
-			},
+	Metadata: credential.Metadata{
+		ModelVersion: util.Version_1_0,
+		Context:      []string{"https://www.w3.org/2018/credentials/v1"},
+		ID:           "422ab006-063e-48f1-91b4-dc09dc512b40",
+		Type:         []string{"VerifiableCredential"},
+		Issuer:       "did:work:74Rr1UctAUoXPXfAyAXgav",
+		IssuanceDate: "2019-03-28T11:11:49.456858506Z",
+		Schema: credential.Schema{
+			ID:   "did:work:6BYw7U4u2PBG2u4jfup9Yp",
+			Type: "ContactSchema",
 		},
-		CredentialSubject: map[string]interface{}{"payPeriodStart": "03/01/2019", "currency": "USD", "grossPay": "10000", "netPay": "7000", "payPeriodEnd": "03/31/2019"},
-		ClaimProofs: map[string]proof.Proof{
-			"payPeriodStart": {
-				Type:               "WorkEd25519Signature2020",
-				Created:            "2019-01-21T17:49:18Z",
-				VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
-				Nonce:              "anotherbadnonce",
-				SignatureValue:     "Junk1pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
-			},
-			"currency": {
-				Type:               "WorkEd25519Signature2020",
-				Created:            "2019-01-21T17:49:18Z",
-				VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
-				Nonce:              "anotherbadnonce",
-				SignatureValue:     "Junk2pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
-			},
-			"grossPay": {
-				Type:               "WorkEd25519Signature2020",
-				Created:            "2019-01-21T17:49:18Z",
-				VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
-				Nonce:              "anotherbadnonce",
-				SignatureValue:     "Junk3pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
-			},
-			"netPay": {
-				Type:               "WorkEd25519Signature2020",
-				Created:            "2019-01-21T17:49:18Z",
-				VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
-				Nonce:              "anotherbadnonce",
-				SignatureValue:     "Junk4pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
-			},
-			"payPeriodEnd": {
-				Type:               "WorkEd25519Signature2020",
-				Created:            "2019-01-21T17:49:18Z",
-				VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
-				Nonce:              "anotherbadnonce",
-				SignatureValue:     "Junk5pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
-			},
+	},
+	CredentialSubject: map[string]interface{}{"payPeriodStart": "03/01/2019", "currency": "USD", "grossPay": "10000", "netPay": "7000", "payPeriodEnd": "03/31/2019"},
+	ClaimProofs: map[string]proof.Proof{
+		"payPeriodStart": {
+			Type:               "WorkEd25519Signature2020",
+			Created:            "2019-01-21T17:49:18Z",
+			VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
+			Nonce:              "anotherbadnonce",
+			SignatureValue:     "Junk1pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
+		},
+		"currency": {
+			Type:               "WorkEd25519Signature2020",
+			Created:            "2019-01-21T17:49:18Z",
+			VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
+			Nonce:              "anotherbadnonce",
+			SignatureValue:     "Junk2pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
+		},
+		"grossPay": {
+			Type:               "WorkEd25519Signature2020",
+			Created:            "2019-01-21T17:49:18Z",
+			VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
+			Nonce:              "anotherbadnonce",
+			SignatureValue:     "Junk3pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
+		},
+		"netPay": {
+			Type:               "WorkEd25519Signature2020",
+			Created:            "2019-01-21T17:49:18Z",
+			VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
+			Nonce:              "anotherbadnonce",
+			SignatureValue:     "Junk4pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
+		},
+		"payPeriodEnd": {
+			Type:               "WorkEd25519Signature2020",
+			Created:            "2019-01-21T17:49:18Z",
+			VerificationMethod: "did:work:PyBScGDehBULWHoZJC7Efk#key-1",
+			Nonce:              "anotherbadnonce",
+			SignatureValue:     "Junk5pHjmMHVHdDsdede7kiQtgf5xuNv7LrdyCmX9kBqfzaJuwC56ZKz9U6DEBtJpGJgCUo9a2VwatXhxzTGJE3k",
 		},
 	},
 	Proof: &proof.Proof{

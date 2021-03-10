@@ -6,11 +6,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
-var unsignedAddressV1Cred = credential.UnsignedVerifiableCredential{
+var unsignedAddressV1Cred = credential.VerifiableCredential{
 	Metadata: credential.Metadata{
 		ModelVersion: util.Version_1_0,
 		Context:      []string{"https://www.w3.org/2018/credentials/v1"},

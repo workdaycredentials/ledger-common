@@ -6,9 +6,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 func GenerateLedgerDIDDoc(keyType proof.KeyType, signatureType proof.SignatureType) (*DIDDoc, ed25519.PrivateKey) {
@@ -43,7 +43,7 @@ func GenerateLedgerDIDDoc(keyType proof.KeyType, signatureType proof.SignatureTy
 	return ledgerDIDDoc, privateKey
 }
 
-func GenerateLedgerRevocation(credentialID string, issuer string, signer proof.Signer, signatureType proof.SignatureType) (*Revocation, error) {
+func GenerateLedgerRevocation(credentialID string, issuer did.DID, signer proof.Signer, signatureType proof.SignatureType) (*Revocation, error) {
 	timeStamp := time.Now().UTC().Format(time.RFC3339)
 	r := &UnsignedRevocation{
 		ID:           GenerateRevocationKey(issuer, credentialID),
@@ -72,7 +72,7 @@ func GenerateLedgerRevocation(credentialID string, issuer string, signer proof.S
 	return &ledgerRevocation, err
 }
 
-func GenerateLedgerSchema(name, author string, signer proof.Signer, signatureType proof.SignatureType, schema map[string]interface{}) (*Schema, error) {
+func GenerateLedgerSchema(name string, author did.DID, signer proof.Signer, signatureType proof.SignatureType, schema map[string]interface{}) (*Schema, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	ledgerSchema := Schema{
 		Metadata: &Metadata{

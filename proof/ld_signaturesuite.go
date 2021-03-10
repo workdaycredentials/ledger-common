@@ -13,7 +13,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/piprate/json-gold/ld"
 
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 const (
@@ -118,7 +118,7 @@ func (f *proofFactoryV1) Create(signer Signer, signatureType SignatureType, opts
 		Type:    signatureType,
 	}
 	if opts != nil {
-		proof.ProofPurpose = opts.ProofPurpose
+		// proof.ProofPurpose = opts.ProofPurpose
 		proof.Domain = opts.Domain
 		proof.Challenge = opts.Challenge
 	}
@@ -142,7 +142,8 @@ func (f *proofFactoryV2) Create(signer Signer, signatureType SignatureType, opts
 		Type:               signatureType,
 	}
 	if opts != nil {
-		proof.ProofPurpose = opts.ProofPurpose
+		// TODO(gabe) comment back in once dynamic mobile models issue is fixed
+		// proof.ProofPurpose = opts.ProofPurpose
 		proof.Domain = opts.Domain
 		proof.Challenge = opts.Challenge
 		proof.Nonce = nonce

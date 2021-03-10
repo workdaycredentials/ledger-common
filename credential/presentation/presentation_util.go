@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/credential/presentation/conditions"
-	"github.com/workdaycredentials/ledger-common/ledger/schema"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/credential/presentation/conditions"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 const (
@@ -20,15 +18,13 @@ const (
 
 // GeneratePresentationFromVC generates a Presentation from a Verifiable Credential, and digitally
 // signs it using the key material provided.
-func GeneratePresentationFromVC(cred credential.UnsignedVerifiableCredential, signer proof.Signer, signatureType proof.SignatureType, presentationID string) (*Presentation, error) {
+func GeneratePresentationFromVC(cred *credential.RawCredential, signer proof.Signer, signatureType proof.SignatureType, presentationID string) (*Presentation, error) {
 	pres := &Presentation{
-		UnsignedPresentation: UnsignedPresentation{
-			Context:     []string{CredentialsLDContext},
-			ID:          presentationID,
-			Type:        []string{LDType, util.ProofResponseTypeReference_v1_0},
-			Created:     time.Now().UTC().Format(time.RFC3339),
-			Credentials: []credential.UnsignedVerifiableCredential{cred},
-		},
+		Context:     []string{CredentialsLDContext},
+		ID:          presentationID,
+		Type:        []string{LDType, util.ProofResponseTypeReference_v1_0},
+		Created:     time.Now().UTC().Format(time.RFC3339),
+		Credentials: []credential.RawCredential{*cred},
 	}
 	suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
 	if err != nil {
@@ -39,9 +35,9 @@ func GeneratePresentationFromVC(cred credential.UnsignedVerifiableCredential, si
 }
 
 // CheckVCsMatchCriterion returns an error if the credentials do not satisfy the given criterion.
-func CheckVCsMatchCriterion(criterion Criterion, credentials []credential.UnsignedVerifiableCredential, variables map[string]interface{}) error {
-	for _, c := range credentials {
-		if err := CheckVCMatchesCriterion(criterion, c, variables); err != nil {
+func CheckVCsMatchCriterion(criterion Criterion, credentials []credential.VerifiableCredential, variables map[string]interface{}) error {
+	for _, cred := range credentials {
+		if err := CheckVCMatchesCriterion(criterion, cred, variables); err != nil {
 			return err
 		}
 	}
@@ -54,11 +50,10 @@ func CheckVCsMatchCriterion(criterion Criterion, credentials []credential.Unsign
 }
 
 // CheckVCMatchesCriterion returns an error if the credential does not satisfy the given criterion.
-func CheckVCMatchesCriterion(criterion Criterion, cred credential.UnsignedVerifiableCredential, variables map[string]interface{}) error {
+func CheckVCMatchesCriterion(criterion Criterion, cred credential.VerifiableCredential, variables map[string]interface{}) error {
 	if criterion.Schema.AuthorDID == "" || criterion.Schema.ResourceIdentifier == "" || criterion.Schema.SchemaVersionRange == "" {
 		if criterion.Schema.SchemaID != "" && criterion.Schema.SchemaID != cred.Schema.ID {
 			schemaErrMsg := fmt.Sprintf("credential schema<%s> did not match expected schema<%s>", cred.Schema.ID, criterion.Schema.SchemaID)
-			logrus.WithField("credential.Schema", cred.Schema).WithField("criterion", criterion).Error("schemaErrMsg")
 			return fmt.Errorf(schemaErrMsg)
 		}
 	} else {
@@ -133,7 +128,7 @@ func CheckVCMatchesCriterion(criterion Criterion, cred credential.UnsignedVerifi
 	return nil
 }
 
-func validCredentialExpiry(cred credential.UnsignedVerifiableCredential) error {
+func validCredentialExpiry(cred credential.VerifiableCredential) error {
 	if cred.ExpirationDate == "" {
 		return nil
 	}

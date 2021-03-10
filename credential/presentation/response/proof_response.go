@@ -4,19 +4,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/credential/presentation"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/credential/presentation"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 func GenerateCompositeProofResponse(proofRequest presentation.CompositeProofRequestInstanceChallenge, fulfilledCriteria []presentation.FulfilledCriterion, signer proof.Signer) (*presentation.CompositeProofResponseSubmission, error) {
 	proofReq := presentation.CompositeProofResponseSubmission{
-		UnsignedCompositeProofResponseSubmission: presentation.UnsignedCompositeProofResponseSubmission{
-			ProofReqRespMetadata:   ProofRespMetadata(),
-			ProofRequestInstanceID: proofRequest.ProofRequestInstanceID,
-			FulfilledCriteria:      fulfilledCriteria,
-		},
+		ProofReqRespMetadata:   ProofRespMetadata(),
+		ProofRequestInstanceID: proofRequest.ProofRequestInstanceID,
+		FulfilledCriteria:      fulfilledCriteria,
 	}
 	// TODO(gabe) variable signature types for proof responses
 	signatureType := proof.JCSEdSignatureType
@@ -37,16 +35,22 @@ func ProofRespMetadata() presentation.ProofReqRespMetadata {
 	}
 }
 
-func FulfillCriterionForVCs(criterion presentation.Criterion, variables map[string]interface{}, submittedV1Credentials []credential.UnsignedVerifiableCredential, signer proof.Signer) (*presentation.FulfilledCriterion, error) {
+func FulfillCriterionForVCs(criterion presentation.Criterion, variables map[string]interface{}, submittedCreds []credential.RawCredential, signer proof.Signer) (*presentation.FulfilledCriterion, error) {
 	var presentations []presentation.Presentation
-	if err := presentation.CheckVCsMatchCriterion(criterion, submittedV1Credentials, variables); err != nil {
+	var creds []credential.VerifiableCredential
+	for _, rawCred := range submittedCreds {
+		creds = append(creds, rawCred.VerifiableCredential)
+	}
+	if err := presentation.CheckVCsMatchCriterion(criterion, creds, variables); err != nil {
 		return nil, err
 	}
-	for _, cred := range submittedV1Credentials {
-		filteredCred := cred
-		stripUnrequestedAttributesFromCredential(criterion, &filteredCred)
+	for _, cred := range submittedCreds {
+		filtered, err := filterCredential(criterion, cred)
+		if err != nil {
+			return nil, err
+		}
 		presentationID := uuid.New().String()
-		pres, err := presentation.GeneratePresentationFromVC(filteredCred, signer, proof.JCSEdSignatureType, presentationID)
+		pres, err := presentation.GeneratePresentationFromVC(filtered, signer, proof.JCSEdSignatureType, presentationID)
 		if err != nil {
 			return nil, err
 		}
@@ -59,68 +63,21 @@ func FulfillCriterionForVCs(criterion presentation.Criterion, variables map[stri
 	}, nil
 }
 
-// FilterCredential removes unselected, optional claims and claim proofs from the given credential with respect to the
-// proof request criteria. It will also add any missing required attributes with a null value and no associated
-// Claim Proof. The function returns the filtered credential.
-func FilterCredential(criteria *presentation.CriteriaHolder, cred credential.UnsignedVerifiableCredential, selectedAttributes []string) credential.UnsignedVerifiableCredential {
-	stripUnselectedAttributesFromCredential(criteria.Criterion, &cred, selectedAttributes)
-	return cred
-}
-
-// stripUnrequestedAttributesFromCredential removes any claim attributes and proofs from the credential that were not
-// requested in the criterion. Exceptions being that the "id" attribute is always implicitly requested, and optional
-// attributes with nil values will be removed.
-//
-// NOTE: This function may leave attributes without associated Claim Proofs or add nil values for required attributes.
-// This may cause a validation error to be returned further down the line. This function does not attempt to make a
-// determination about the validity of such a credential.
-func stripUnrequestedAttributesFromCredential(criterion presentation.Criterion, credential *credential.UnsignedVerifiableCredential) {
-	var requestedAttributes []string
+// filterCredential removes any claim attributes and proofs from the credential that were not
+// requested in the criterion. Exceptions being that the "id" attribute is always implicitly
+// requested.
+func filterCredential(criterion presentation.Criterion, cred credential.RawCredential) (*credential.RawCredential, error) {
+	requestedAttrSet := make(map[string]bool)
 	for _, attr := range criterion.Schema.Attributes {
-		requestedAttributes = append(requestedAttributes, attr.AttributeName)
+		requestedAttrSet[attr.AttributeName] = true
 	}
-	stripUnselectedAttributesFromCredential(criterion, credential, requestedAttributes)
-}
 
-// stripUnselectedAttributesFromCredential removes any claim attributes and proofs from the credential that were not
-// required by the criterion or selected by the holder. Exceptions being that the "id" attribute is always implicitly
-// requested, and optional attributes with nil values will be removed.
-//
-// NOTE: This function may leave attributes without associated Claim Proofs or add nil values for required attributes.
-// This may cause a validation error to be returned further down the line. This function does not attempt to make a
-// determination about the validity of such a credential.
-func stripUnselectedAttributesFromCredential(criterion presentation.Criterion, cred *credential.UnsignedVerifiableCredential, selectedAttributes []string) {
-	disclosedAttrs := make(map[string]interface{})
-	disclosedProofs := make(map[string]proof.Proof)
-
-	if subjectDID, ok := cred.CredentialSubject[credential.SubjectIDAttribute]; ok {
-		disclosedAttrs[credential.SubjectIDAttribute] = subjectDID
-		if p, ok := cred.ClaimProofs[credential.SubjectIDAttribute]; ok {
-			disclosedProofs[credential.SubjectIDAttribute] = p
-		}
+	// Include the `id` attribute.
+	if _, ok := cred.CredentialSubject[credential.SubjectIDAttribute]; ok {
+		requestedAttrSet[credential.SubjectIDAttribute] = true
 	} else {
 		logrus.Warnf("could not find subject identity %s in credential %s", credential.SubjectIDAttribute, cred.ID)
 	}
 
-	selectedAttributeSet := make(map[string]bool)
-	for _, attr := range selectedAttributes {
-		selectedAttributeSet[attr] = true
-	}
-
-	for _, requestedAttr := range criterion.Schema.Attributes {
-		name := requestedAttr.AttributeName
-		if requestedAttr.Required || selectedAttributeSet[name] {
-			value, hasAttr := cred.CredentialSubject[name]
-			p, hasProof := cred.ClaimProofs[name]
-
-			if requestedAttr.Required || (hasAttr && value != nil) {
-				disclosedAttrs[name] = value
-				if hasProof {
-					disclosedProofs[name] = p
-				}
-			}
-		}
-	}
-	cred.CredentialSubject = disclosedAttrs
-	cred.ClaimProofs = disclosedProofs
+	return cred.Filter(requestedAttrSet)
 }

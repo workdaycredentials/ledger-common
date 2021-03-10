@@ -8,8 +8,8 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/sirupsen/logrus"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 type (
@@ -21,17 +21,17 @@ type (
 
 	SchemaProvider     func(ctx context.Context, schemaID string) (*Schema, error)
 	RevocationProvider func(ctx context.Context, credentialID, revocationID string) (*Revocation, error)
-	DIDDocProvider     func(ctx context.Context, did string) (*DIDDoc, error)
+	DIDDocProvider     func(ctx context.Context, did did.DID) (*DIDDoc, error)
 )
 
 // GetKeyDef returns the Ed25519 public key with the given Key ID located on the DID Document.
-func GetKeyDef(ctx context.Context, did, keyID string, provider DIDDocProvider) (*did.KeyDef, error) {
+func GetKeyDef(ctx context.Context, did did.DID, keyID string, provider DIDDocProvider) (*did.KeyDef, error) {
 	doc, err := provider(ctx, did)
 	if err != nil {
 		logrus.WithError(err).Errorf("Could not get did doc for did: %s", did)
 		return nil, err
 	}
-	if doc == nil || doc.ID == "" {
+	if doc == nil || doc.Metadata.ID == "" {
 		return nil, fmt.Errorf("no DID Doc found for specified ID: %s", did)
 	}
 	if keyDef := doc.GetPublicKey(keyID); !keyDef.IsEmpty() {
@@ -48,8 +48,8 @@ func GetKeyDef(ctx context.Context, did, keyID string, provider DIDDocProvider) 
 // credential, and therefore now the credential ID and issuer DID will be able to look up the
 // revocation status in the ledger. This is intended to prevent data mining on the revocations
 // store in an attempt to learn anything about the issuer.
-func GenerateRevocationKey(issuerDID string, credentialID string) string {
-	sha := sha256.Sum256([]byte(issuerDID + credentialID))
+func GenerateRevocationKey(issuerDID did.DID, credentialID string) string {
+	sha := sha256.Sum256([]byte(string(issuerDID) + credentialID))
 	return base58.Encode(sha[:])
 }
 

@@ -6,10 +6,11 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	didpkg "github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
-	"github.com/workdaycredentials/ledger-common/util/canonical"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	didpkg "go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/util/canonical"
 )
 
 // GenerateB64EncodedEd25519DeactivatedDIDDoc creates a deactivated DID Document and returns it as
@@ -27,7 +28,7 @@ func GenerateB64EncodedEd25519DeactivatedDIDDoc(b64EncodedPrivKey, b64EncDID str
 	if err != nil {
 		return "", err
 	}
-	id := string(decodeDIDBytes)
+	id := did.DID(decodeDIDBytes)
 
 	keyID := didpkg.GenerateKeyID(id, didpkg.InitialKey)
 	signer, err := proof.NewEd25519Signer(signingKey, keyID)
@@ -52,8 +53,8 @@ func GenerateB64EncodedEd25519DeactivatedDIDDoc(b64EncodedPrivKey, b64EncDID str
 
 // GenerateDeactivatedDIDDoc creates a deactivated DID Document.
 // Returns an error if the Signer fails to generate the digital signature.
-func GenerateDeactivatedDIDDoc(signer proof.Signer, suite proof.SignatureSuite, did string) (*DIDDoc, error) {
-	doc := &didpkg.DIDDoc{UnsignedDIDDoc: didpkg.UnsignedDIDDoc{ID: did}}
+func GenerateDeactivatedDIDDoc(signer proof.Signer, suite proof.SignatureSuite, did did.DID) (*DIDDoc, error) {
+	doc := &didpkg.DIDDoc{ID: did}
 	fullyQualifiedKeyRef := didpkg.GenerateKeyID(did, didpkg.InitialKey)
 	if err := suite.Sign(doc, signer, nil); err != nil {
 		return nil, err
@@ -63,7 +64,7 @@ func GenerateDeactivatedDIDDoc(signer proof.Signer, suite proof.SignatureSuite, 
 		Metadata: &Metadata{
 			Type:         util.DIDDocTypeReference_v1_0,
 			ModelVersion: util.Version_1_0,
-			ID:           doc.ID,
+			ID:           doc.ID.String(),
 			Authored:     time.Now().UTC().Format(time.RFC3339),
 			Author:       didpkg.ExtractDIDFromKeyRef(fullyQualifiedKeyRef),
 		},

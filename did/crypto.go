@@ -9,8 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 const (
@@ -35,16 +35,16 @@ const (
 
 // ExtractDIDFromKeyRef parses a key reference in the form of DID#keyID and returns the DID.
 // If the key reference doesn't contain a hash "#" symbol, the entire key reference is returned.
-func ExtractDIDFromKeyRef(keyRef string) string {
-	s := strings.Split(keyRef, "#")
-	return s[0]
+func ExtractDIDFromKeyRef(keyRef string) DID {
+	s := strings.SplitN(keyRef, "#", 2)
+	return DID(s[0])
 }
 
 // GenerateDID generates a Decentralized ID in the form of "did:work:<id>" based on an Ed25519
 // public key. Workday's DID method uses the first 16 bytes of the public key as a unique random
 // value, assuming that the caller generates a new random key pair when creating a new ID.
-func GenerateDID(publicKey ed25519.PublicKey) string {
-	return WorkDIDMethod + base58.Encode(publicKey[0:16])
+func GenerateDID(publicKey ed25519.PublicKey) DID {
+	return DID(WorkDIDMethod + base58.Encode(publicKey[0:16]))
 }
 
 // TODO consider making keyref a type
@@ -60,13 +60,13 @@ func GenerateDID(publicKey ed25519.PublicKey) string {
 // 	return s[1]		return s[1]
 // }
 // GenerateKeyID builds a fully qualified key reference given a DID and a key fragment
-func GenerateKeyID(did, fragment string) string {
+func GenerateKeyID(did DID, fragment string) string {
 	return fmt.Sprintf("%s#%s", did, fragment)
 }
 
 // GenerateDIDFromB64PubKey converts a base64 encoded Ed25519 public key into a Decentralized ID.
 // See GenerateDID.
-func GenerateDIDFromB64PubKey(edBase64PubKey string) (string, error) {
+func GenerateDIDFromB64PubKey(edBase64PubKey string) (DID, error) {
 	pubKeyBytes, err := base64.StdEncoding.DecodeString(edBase64PubKey)
 	if err != nil {
 		return "", errors.Wrap(err, "unable to base64 decode ED key")
@@ -95,14 +95,14 @@ func GetProofCreatorKeyDef(didDoc DIDDoc) (*KeyDef, error) {
 // GenerateDIDKey generates a non-registry based Decentralized DID in the form of "did:key:<id>" based on an Ed25519
 // public key. The DID Key Method expands a cryptographic public key into a DID Document.
 // Note: As of May 2020, the DID Key method is still in unofficial draft (https://w3c-ccg.github.io/did-method-key)
-func GenerateDIDKey(publicKey ed25519.PublicKey) string {
+func GenerateDIDKey(publicKey ed25519.PublicKey) DID {
 	pk := append([]byte{Ed25519Codec}, publicKey...)
-	return KeyDIDMethod + "z" + base58.Encode(pk)
+	return DID(KeyDIDMethod + "z" + base58.Encode(pk))
 }
 
 // GenerateDIDKeyFromB64PubKey converts a base64 encoded Ed25519 public key into a DID Key.
 // See GenerateDIDKey.
-func GenerateDIDKeyFromB64PubKey(edBase64PubKey string) (did string, err error) {
+func GenerateDIDKeyFromB64PubKey(edBase64PubKey string) (did DID, err error) {
 	decodedPubKey, err := base64.StdEncoding.DecodeString(edBase64PubKey)
 	if err != nil {
 		return
@@ -111,13 +111,13 @@ func GenerateDIDKeyFromB64PubKey(edBase64PubKey string) (did string, err error) 
 }
 
 // ExtractEdPublicKeyFromDID extracts an Ed25519 Public Key from a DID Key.
-func ExtractEdPublicKeyFromDID(did string) (key ed25519.PublicKey, err error) {
+func ExtractEdPublicKeyFromDID(did DID) (key ed25519.PublicKey, err error) {
 	prefix := KeyDIDMethod + "z"
-	if !strings.HasPrefix(did, prefix) {
+	if !strings.HasPrefix(did.String(), prefix) {
 		err = fmt.Errorf("DID<%s> format not supported", did)
 		return
 	}
-	decodedKey, err := base58.Decode(did[len(prefix):])
+	decodedKey, err := base58.Decode(did[len(prefix):].String())
 	if err != nil {
 		return nil, errors.New("cannot decode DID")
 	}
@@ -143,8 +143,8 @@ func DeactivateDIDDoc(doc DIDDoc, key ed25519.PrivateKey) (*DIDDoc, error) {
 
 // DeactivateDIDDocGeneric creates a deactivated DID Document.
 // Returns an error if the Signer fails to generate the digital signature.
-func DeactivateDIDDocGeneric(signer proof.Signer, signatureType proof.SignatureType, did string) (*DIDDoc, error) {
-	doc := DIDDoc{UnsignedDIDDoc: UnsignedDIDDoc{ID: did}}
+func DeactivateDIDDocGeneric(signer proof.Signer, signatureType proof.SignatureType, did DID) (*DIDDoc, error) {
+	doc := DIDDoc{ID: did}
 	suite, err := proof.SignatureSuites().GetSuite(signatureType, proof.V2)
 	if err != nil {
 		return nil, err
@@ -185,11 +185,11 @@ func AddKeyToDIDDoc(doc DIDDoc, keyToAdd KeyDef, signingKey ed25519.PrivateKey, 
 	if keyToAdd.IsEmpty() {
 		return nil, errors.New("cannot add empty key def")
 	}
-	if !strings.Contains(doc.ID, WorkDIDMethod) {
+	if !strings.HasPrefix(doc.ID.String(), WorkDIDMethod) {
 		return nil, errors.New("cannot add to non-did:work document")
 	}
-	// make sure the signing key matches the one used for the signature
-	if !strings.Contains(doc.Proof.GetVerificationMethod(), GenerateDID(signingKey.Public().(ed25519.PublicKey))) {
+	// make sure the signing key matches the one used for the signature FIXME: it's a ref, not a DID
+	if !strings.Contains(doc.Proof.GetVerificationMethod(), GenerateDID(signingKey.Public().(ed25519.PublicKey)).String()) {
 		return nil, errors.New("signing key not found in DID Document")
 	}
 	// map of key id to index in document

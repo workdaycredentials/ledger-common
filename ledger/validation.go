@@ -10,9 +10,9 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/sirupsen/logrus"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 // DID //
@@ -24,7 +24,7 @@ func (d DIDDoc) Validate(ctx context.Context, provider DIDDocProvider) error {
 	}
 
 	if err := d.ValidateUniqueness(ctx, provider); err != nil {
-		logrus.Errorf("Could not validate did doc uniqueness: %s", d.ID)
+		logrus.Errorf("Could not validate did doc uniqueness: %s", d.Metadata.ID)
 		return err
 	}
 	return nil
@@ -36,18 +36,18 @@ func (d DIDDoc) ValidateStatic() error {
 		return err
 	}
 
-	if err := ValidateDID(d.ID); err != nil {
-		logrus.Errorf("Could not validate did doc did: %s", d.ID)
+	if err := ValidateDID(d.DIDDoc.ID); err != nil {
+		logrus.Errorf("Could not validate did doc did: %s", d.DIDDoc.ID)
 		return err
 	}
 
 	if err := d.ValidateMetadata(); err != nil {
-		logrus.Errorf("Could not validate did doc metadata: %s", d.ID)
+		logrus.Errorf("Could not validate did doc metadata: %s", d.Metadata.ID)
 		return err
 	}
 
 	if err := d.ValidateProof(); err != nil {
-		logrus.Errorf("Could not validate did doc proof: %s", d.ID)
+		logrus.Errorf("Could not validate did doc proof: %s", d.Metadata.ID)
 		return err
 	}
 	return nil
@@ -84,12 +84,12 @@ func (d DIDDoc) ValidateDeactivated() error {
 	return nil
 }
 
-func ValidateDID(did string) error {
+func ValidateDID(did did.DID) error {
 	// The DID is generated as a base58 encoding of the lower 16 bytes of the public key
 	// and can be variable length, probably between 22-25 characters. For now we can say
 	// that it's at least 16 characters.
 	// TODO In the future we should base58 decode and ensure that the length is 16 bytes.
-	isValid, err := regexp.MatchString(`^did:work:\w{16}`, did)
+	isValid, err := regexp.MatchString(`^did:work:\w{16}`, string(did))
 	if err != nil {
 		return err
 	}
@@ -104,10 +104,13 @@ func (d DIDDoc) ValidateMetadata() error {
 		return errors.New("metadata on did doc is empty")
 	}
 	if d.Type != util.DIDDocTypeReference_v1_0 {
-		return fmt.Errorf("invalid type %s", d.Type)
+		return fmt.Errorf("invalid type: %s", d.Type)
 	}
 	if d.ModelVersion != util.Version_1_0 {
-		return fmt.Errorf("invalid modelVersion %s", d.ModelVersion)
+		return fmt.Errorf("invalid modelVersion: %s", d.ModelVersion)
+	}
+	if d.DIDDoc.ID.String() != d.Metadata.ID {
+		return fmt.Errorf("invalid ID: %s", d.DIDDoc.ID)
 	}
 	return nil
 }
@@ -146,13 +149,13 @@ func (d DIDDoc) ValidateProof() error {
 }
 
 func (d DIDDoc) ValidateUniqueness(ctx context.Context, provider DIDDocProvider) error {
-	record, err := provider(ctx, d.ID)
+	record, err := provider(ctx, d.DIDDoc.ID)
 	if err != nil {
-		logrus.WithError(err).Errorf("failure to lookup DID Record: %s", d.ID)
+		logrus.WithError(err).Errorf("failure to lookup DID Record: %s", d.Metadata.ID)
 		return nil
 	}
-	if record != nil && record.ID != "" && !reflect.DeepEqual(d, *record) {
-		return fmt.Errorf("DID Doc already exists: %s", d.ID)
+	if record != nil && record.Metadata.ID != "" && !reflect.DeepEqual(d, *record) {
+		return fmt.Errorf("DID Doc already exists: %s", d.Metadata.ID)
 	}
 	return nil
 }
@@ -267,8 +270,10 @@ func (r Revocation) ValidateUniqueness(ctx context.Context, provider RevocationP
 // Schema //
 
 const (
-	IDRxStr = "^did:work:\\S+\\;id=\\S+;version=\\d+\\.\\d+$"
+	idRxStr = `^(did:work:\S+)\;id=(\S+);version=(\d+\.\d+)$`
 )
+
+var IDRx = regexp.MustCompile(idRxStr)
 
 func (s Schema) Validate(ctx context.Context, provider Provider) error {
 	if err := s.ValidateStatic(); err != nil {
@@ -314,14 +319,9 @@ func (s Schema) ValidateNotEmpty() error {
 }
 
 func ValidateSchemaID(id string) error {
-	r, err := regexp.Compile(IDRxStr)
-	if err != nil {
-		return fmt.Errorf("failed to compile regular expression: %s", IDRxStr)
-	}
-
-	result := r.Match([]byte(id))
+	result := IDRx.Match([]byte(id))
 	if !result {
-		return fmt.Errorf("ledger schema 'id': %s is not valid against pattern: %s", id, IDRxStr)
+		return fmt.Errorf("ledger schema 'id': %s is not valid against pattern: %s", id, idRxStr)
 	}
 	return nil
 }

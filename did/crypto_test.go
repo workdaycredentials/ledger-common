@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 var (
@@ -28,7 +28,7 @@ func TestGenerateDIDDocWithAndWithoutContext(t *testing.T) {
 
 	t.Run("Verify with context", func(t *testing.T) {
 		contextDoc, _ := GenerateDIDDocWithContext(proof.Ed25519KeyType, proof.JCSEdSignatureType)
-		assert.Equal(t, SchemaContext, contextDoc.SchemaContext)
+		assert.Equal(t, StringOrArray{SchemaContext}, contextDoc.SchemaContext)
 		pk, err := base58.Decode(contextDoc.PublicKey[0].PublicKeyBase58)
 		assert.NoError(t, err)
 
@@ -38,7 +38,7 @@ func TestGenerateDIDDocWithAndWithoutContext(t *testing.T) {
 
 	t.Run("Verify without context", func(t *testing.T) {
 		withoutContextDoc, _ := GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
-		assert.Equal(t, "", withoutContextDoc.SchemaContext)
+		assert.Empty(t, withoutContextDoc.SchemaContext)
 		pk, err := base58.Decode(withoutContextDoc.PublicKey[0].PublicKeyBase58)
 		assert.NoError(t, err)
 
@@ -52,7 +52,7 @@ func TestGetDIDFromPubKey(t *testing.T) {
 
 	did, err := GenerateDIDFromB64PubKey(edBase64PubKey)
 	assert.NoError(t, err)
-	assert.Equal(t, "did:work:6sYe1y3zXhmyrBkgHgAgaq", did)
+	assert.Equal(t, DID("did:work:6sYe1y3zXhmyrBkgHgAgaq"), did)
 }
 
 func TestExtractAuthorDID(t *testing.T) {
@@ -79,9 +79,7 @@ func TestExtractAuthorDID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ExtractDIDFromKeyRef(tt.didFragment); got != tt.want {
-				t.Errorf("ExtractDIDFromKeyRef() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, DID(tt.want), ExtractDIDFromKeyRef(tt.didFragment))
 		})
 	}
 }
@@ -117,7 +115,7 @@ func TestDIDKey(t *testing.T) {
 	t.Run("GenerateDIDKey()", func(t *testing.T) {
 		did := GenerateDIDKey(issuerPubKey)
 		expectedDIDKeyLen := 55
-		assert.True(t, strings.HasPrefix(did, "did:key:z"))
+		assert.True(t, strings.HasPrefix(string(did), "did:key:z"))
 		assert.Len(t, did, expectedDIDKeyLen)
 	})
 
@@ -133,7 +131,7 @@ func TestDIDKey(t *testing.T) {
 
 func TestExtractEdPublicKeyFromDID(t *testing.T) {
 	t.Run("Wrong DID Method", func(t *testing.T) {
-		did := "did:work:12345678"
+		did := DID("did:work:12345678")
 		_, err := ExtractEdPublicKeyFromDID(did)
 		assert.Error(t, err)
 		expectedErr := fmt.Errorf("DID<%s> format not supported", did)
@@ -141,7 +139,7 @@ func TestExtractEdPublicKeyFromDID(t *testing.T) {
 	})
 
 	t.Run("Improper Multiformat", func(t *testing.T) {
-		did := "did:key:x12345678"
+		did := DID("did:key:x12345678")
 		_, err := ExtractEdPublicKeyFromDID(did)
 		assert.Error(t, err)
 		expectedErr := fmt.Errorf("DID<%s> format not supported", did)
@@ -149,7 +147,7 @@ func TestExtractEdPublicKeyFromDID(t *testing.T) {
 	})
 
 	t.Run("Can't Extract Key", func(t *testing.T) {
-		did := "did:key:z12345678"
+		did := DID("did:key:z12345678")
 		_, err := ExtractEdPublicKeyFromDID(did)
 		assert.Error(t, err)
 		expectedErr := fmt.Errorf("key cannot be extracted from DID<%s>", did)
@@ -158,7 +156,7 @@ func TestExtractEdPublicKeyFromDID(t *testing.T) {
 
 	t.Run("Happy Path", func(t *testing.T) {
 		actualPK := issuerPubKey
-		did := "did:key:z2DTcg9rqdBTZ2qK1eCy1zQ3c6GzHdZYugdnTKE4NrK8Acd"
+		did := DID("did:key:z2DTcg9rqdBTZ2qK1eCy1zQ3c6GzHdZYugdnTKE4NrK8Acd")
 		expectedPK, err := ExtractEdPublicKeyFromDID(did)
 		require.NoError(t, err)
 		assert.Equal(t, expectedPK, actualPK)
@@ -218,13 +216,7 @@ func TestVerifySecp256k1DIDDoc(t *testing.T) {
 		PublicKeyBase58: base58PublicKey,
 	}
 
-	id := "did:work:9999999999999"
-
-	unsignedDIDDoc := UnsignedDIDDoc{
-		SchemaContext: "https://w3id.org/did/v1",
-		ID:            id,
-		PublicKey:     []KeyDef{},
-	}
+	id := DID("did:work:9999999999999")
 
 	p := proof.Proof{
 		Created:        "2020-03-12T10:19:26Z",
@@ -235,8 +227,10 @@ func TestVerifySecp256k1DIDDoc(t *testing.T) {
 	}
 
 	doc := DIDDoc{
-		UnsignedDIDDoc: unsignedDIDDoc,
-		Proof:          &p,
+		SchemaContext: StringOrArray{"https://w3id.org/did/v1"},
+		ID:            id,
+		PublicKey:     []KeyDef{},
+		Proof:         &p,
 	}
 
 	verifier, err := AsVerifier(adminPublicKey)
@@ -247,14 +241,11 @@ func TestVerifySecp256k1DIDDoc(t *testing.T) {
 	assert.NoError(t, suite.Verify(&doc, verifier))
 
 	// Now test a bad one
-	didInvalid := "did:work:invalid"
-	unsignedDIDDocInvalid := UnsignedDIDDoc{
+	didInvalid := DID("did:work:invalid")
+	badDoc := DIDDoc{
 		ID:        didInvalid,
 		PublicKey: []KeyDef{},
-	}
-	badDoc := DIDDoc{
-		UnsignedDIDDoc: unsignedDIDDocInvalid,
-		Proof:          &p,
+		Proof:     &p,
 	}
 	assert.Error(t, suite.Verify(&badDoc, verifier))
 }

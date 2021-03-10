@@ -44,11 +44,11 @@ func withB64Digest(suite *LDSignatureSuite) *LDSignatureSuite {
 	updated := *suite
 	if encoder, ok := updated.Encoder.(*JWSEncoder); ok {
 		encoderCopy := *encoder
-		encoderCopy.digester = nil
+		encoderCopy.digester = &Base64Encoder{}
 		updated.Encoder = &encoderCopy
 	} else if encoder, ok := updated.Encoder.(*LDSignatureEncoder); ok {
 		encoderCopy := *encoder
-		encoderCopy.digester = nil
+		encoderCopy.digester = &Base64Encoder{}
 		updated.Encoder = &encoderCopy
 	}
 	return &updated
@@ -117,15 +117,15 @@ func (s *signatureSuites) GetSuiteForProof(proof *Proof) (suite SignatureSuite, 
 
 // GetSuite returns the correct SignatureSuite to use for signing or verifying a Proof of a
 // particular Type and Proof model version.
-func (s *signatureSuites) GetSuite(signatureType SignatureType, modelVersion ModelVersion) (suite SignatureSuite, err error) {
-	switch modelVersion {
+func (s *signatureSuites) GetSuite(signatureType SignatureType, version ModelVersion) (suite SignatureSuite, err error) {
+	switch version {
 	case V1:
 		suite = s.getSuiteV1(signatureType)
 	case V2:
 		suite = s.getSuiteV2(signatureType)
 	}
 	if suite == nil {
-		err = fmt.Errorf("unsupported signature type: %s:%d", signatureType, modelVersion)
+		err = fmt.Errorf("unsupported signature type: %s:%d", signatureType, version)
 	}
 	return
 }
@@ -166,7 +166,7 @@ func (s *signatureSuites) GetSuiteForCredentials(signatureType SignatureType, ve
 		suite = s.getSuiteV2Cred(signatureType)
 	}
 	if suite == nil {
-		err = fmt.Errorf("unsupported signature type")
+		err = fmt.Errorf("unsupported signature type: %s:%d", signatureType, version)
 	}
 	return
 }
@@ -175,21 +175,22 @@ func (s *signatureSuites) GetSuiteForCredentials(signatureType SignatureType, ve
 // proofs on Verifiable Credentials. These proofs have diverged from the standard proofs by using
 // base64 encoding as a message digest.
 func (s *signatureSuites) GetSuiteForCredentialsProof(proof *Proof) (suite SignatureSuite, err error) {
-	switch proof.ModelVersion() {
+	version := proof.ModelVersion()
+	switch version {
 	case V1:
 		suite = s.getSuiteV1Cred(proof.Type)
 	case V2:
 		suite = s.getSuiteV2Cred(proof.Type)
 	}
 	if suite == nil {
-		err = fmt.Errorf("unsupported signature type")
+		err = fmt.Errorf("unsupported signature type: %s:%d", proof.Type, version)
 	}
 	return
 }
 
 func (s *signatureSuites) getSuiteV1Cred(signatureType SignatureType) SignatureSuite {
 	switch signatureType {
-	case Ed25519SignatureType:
+	case Ed25519KeySignatureType:
 		return ed25519SignatureSuiteV1B64
 	case WorkEdSignatureType:
 		return workSignatureSuiteV1B64

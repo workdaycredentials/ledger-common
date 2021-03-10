@@ -8,8 +8,8 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 func TestCreateAndVerifyJWS(t *testing.T) {
@@ -45,10 +45,8 @@ func generateDIDDocMultipleKeys(signatureType proof.SignatureType) (*did.DIDDoc,
 	}
 
 	doc := did.DIDDoc{
-		UnsignedDIDDoc: did.UnsignedDIDDoc{
-			ID:        id,
-			PublicKey: didPubKeys,
-		},
+		ID:        id,
+		PublicKey: didPubKeys,
 	}
 
 	signer, _ := proof.NewEd25519Signer(privateKey, signingKeyRef)

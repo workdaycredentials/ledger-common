@@ -11,14 +11,14 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/sirupsen/logrus"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 type GenerateDIDDocInput struct {
 	// DID is a decentralized identifier in the format of "did:work:<id>".
-	DID string `validate:"required"`
+	DID did.DID `validate:"required"`
 	// FullyQualifiedKeyRef is a URI that points to a public key associated with the SigningKey,
 	// which can be used to verify the digital signature. This key must be included in the
 	// PublicKeys map.
@@ -33,7 +33,7 @@ type GenerateDIDDocInput struct {
 	// Issuer is an optional DID who controls the SigningKey. This is intended to be used by
 	// Issuers that create a different DID Document per schema type.  Specifying the Issuer here
 	// creates a linkage between the identities.
-	Issuer string `validate:"required"`
+	Issuer did.DID `validate:"required"`
 	// Services are service endpoints that are published in the DID Document.
 	//
 	// Workday uses a "schema" service endpoint to specify which schema an identity will issue
@@ -63,11 +63,9 @@ func (g GenerateDIDDocInput) GenerateLedgerDIDDoc() (*DIDDoc, error) {
 	}
 
 	doc := did.DIDDoc{
-		UnsignedDIDDoc: did.UnsignedDIDDoc{
-			ID:        g.DID,
-			PublicKey: didPubKeys,
-			Service:   g.Services,
-		},
+		ID:        g.DID,
+		PublicKey: didPubKeys,
+		Service:   g.Services,
 	}
 
 	proofVersion := proof.V2
@@ -87,7 +85,7 @@ func (g GenerateDIDDocInput) GenerateLedgerDIDDoc() (*DIDDoc, error) {
 		Metadata: &Metadata{
 			Type:         util.DIDDocTypeReference_v1_0,
 			ModelVersion: util.Version_1_0,
-			ID:           doc.ID,
+			ID:           doc.ID.String(),
 			Author:       doc.PublicKey[0].Controller,
 			Authored:     time.Now().UTC().Format(time.RFC3339),
 		},
@@ -136,7 +134,7 @@ func GenerateB64EncodedEd25519DIDDoc(b64EncodedPrivKey string) (string, error) {
 
 // GenerateKeyDIDDoc generates DID Document as defined by The did:key Method based on supplied ED25519 Public Key
 // and keyref.
-func GenerateKeyDIDDoc(publicKey ed25519.PublicKey, keyRef string) *did.UnsignedDIDDoc {
+func GenerateKeyDIDDoc(publicKey ed25519.PublicKey, keyRef string) *did.DIDDoc {
 	id := did.GenerateDIDKey(publicKey)
 	publicKeyDefs := []did.KeyDef{
 		{
@@ -146,7 +144,7 @@ func GenerateKeyDIDDoc(publicKey ed25519.PublicKey, keyRef string) *did.Unsigned
 			PublicKeyBase58: base58.Encode(publicKey),
 		},
 	}
-	return &did.UnsignedDIDDoc{
+	return &did.DIDDoc{
 		ID:        id,
 		PublicKey: publicKeyDefs,
 		Service:   nil,

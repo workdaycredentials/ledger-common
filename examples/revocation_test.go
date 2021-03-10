@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/workdaycredentials/ledger-common/credential"
-	"github.com/workdaycredentials/ledger-common/ledger"
-	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/name"
-	"github.com/workdaycredentials/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"go.wday.io/credentials-open-source/ledger-common/ledger"
+	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/name"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
 )
 
 func TestRevocation(t *testing.T) {
@@ -32,7 +32,7 @@ func TestRevocation(t *testing.T) {
 
 	// turn it into a ledger schema to give it an identifier
 	// here we are using the issuer as the author of the schema
-	ledgerSchema, err := ledger.GenerateLedgerSchema("Name Schema", issuerDoc.ID, signer, proof.JCSEdSignatureType, nameSchemaMap)
+	ledgerSchema, err := ledger.GenerateLedgerSchema("Name Schema", issuerDoc.DIDDoc.ID, signer, proof.JCSEdSignatureType, nameSchemaMap)
 	assert.NoError(t, err)
 
 	// choose a cred id
@@ -40,11 +40,11 @@ func TestRevocation(t *testing.T) {
 
 	// create the credential metadata (this one doesn't expire)
 	baseRevocationURL := "https://testrevocationservice.com/"
-	metadata := credential.NewMetadataWithTimestamp(credID, issuerDoc.ID, ledgerSchema.ID, baseRevocationURL, time.Now())
+	metadata := credential.NewMetadataWithTimestamp(credID, issuerDoc.DIDDoc.ID, ledgerSchema.ID, baseRevocationURL, time.Now())
 
 	// build the credential
 	cred, err := credential.Builder{
-		SubjectDID: holderDoc.ID,
+		SubjectDID: holderDoc.DIDDoc.ID,
 		// according to the schema, only the first and last name fields are required
 		Data: map[string]interface{}{
 			"firstName": "Genghis",
@@ -59,7 +59,7 @@ func TestRevocation(t *testing.T) {
 	assert.NotEmpty(t, cred)
 
 	// Next, create a revocation for the schema using the same DID used to issue the credential
-	revocation, err := ledger.GenerateLedgerRevocation(cred.ID, issuerDoc.ID, signer, proof.JCSEdSignatureType)
+	revocation, err := ledger.GenerateLedgerRevocation(cred.ID, issuerDoc.DIDDoc.ID, signer, proof.JCSEdSignatureType)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, revocation)
 	assert.Equal(t, revocation.CredentialID, cred.ID)

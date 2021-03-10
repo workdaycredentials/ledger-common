@@ -10,17 +10,18 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/workdaycredentials/ledger-common/did"
-	"github.com/workdaycredentials/ledger-common/proof"
-	"github.com/workdaycredentials/ledger-common/util"
+	"go.wday.io/credentials-open-source/ledger-common/did"
+	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"go.wday.io/credentials-open-source/ledger-common/util"
 )
 
 // DID //
 
 func TestValidateDIDDoc(t *testing.T) {
 	ledgerDIDDoc, _ := GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
-	provider := TestDIDDocProvider{map[string]*DIDDoc{ledgerDIDDoc.ID: ledgerDIDDoc}}
+	provider := TestDIDDocProvider{map[string]*DIDDoc{ledgerDIDDoc.Metadata.ID: ledgerDIDDoc}}
 	assert.NoError(t, ledgerDIDDoc.Validate(context.Background(), provider.GetDIDDoc))
 }
 
@@ -46,49 +47,57 @@ func TestValidateDID(t *testing.T) {
 func TestValidateDIDMetadata(t *testing.T) {
 	doc := DIDDoc{
 		Metadata: &Metadata{
+			ID:           "notempty",
 			Type:         util.DIDDocTypeReference_v1_0,
 			ModelVersion: util.Version_1_0,
 		},
 		DIDDoc: &did.DIDDoc{
-			UnsignedDIDDoc: did.UnsignedDIDDoc{
-				ID: "notempty",
-			},
+			ID: "notempty",
 		},
 	}
 	assert.NoError(t, doc.ValidateMetadata())
 
+	doc1 := DIDDoc{
+		Metadata: &Metadata{
+			Type:         util.DIDDocTypeReference_v1_0,
+			ModelVersion: util.Version_1_0,
+		},
+		DIDDoc: &did.DIDDoc{
+			ID: "notempty",
+		},
+	}
+	assert.EqualError(t, doc1.ValidateMetadata(), "invalid ID: notempty")
+
 	doc2 := DIDDoc{
 		Metadata: &Metadata{
+			ID:           "notempty",
 			Type:         "wrong type",
 			ModelVersion: "1.0",
 		},
 		DIDDoc: &did.DIDDoc{
-			UnsignedDIDDoc: did.UnsignedDIDDoc{
-				ID: "notempty",
-			},
+			ID: "notempty",
 		},
 	}
-	assert.Error(t, doc2.ValidateMetadata())
+	assert.EqualError(t, doc2.ValidateMetadata(), "invalid type: wrong type")
 
 	doc3 := DIDDoc{
 		Metadata: &Metadata{
+			ID:           "notempty",
 			Type:         util.DIDDocTypeReference_v1_0,
 			ModelVersion: "0.1",
 		},
 		DIDDoc: &did.DIDDoc{
-			UnsignedDIDDoc: did.UnsignedDIDDoc{
-				ID: "notempty",
-			},
+			ID: "notempty",
 		},
 	}
-	assert.Error(t, doc3.ValidateMetadata())
+	assert.EqualError(t, doc3.ValidateMetadata(), "invalid modelVersion: 0.1")
 }
 
 func TestValidateDIDDocProof(t *testing.T) {
 	ledgerDIDDoc, _ := GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 	assert.NoError(t, ledgerDIDDoc.ValidateProof())
 
-	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.ID: didDoc}}
+	provider := TestDIDDocProvider{Records: map[string]*DIDDoc{didDoc.Metadata.ID: didDoc}}
 	assert.NoError(t, didDoc.Validate(context.Background(), provider.GetDIDDoc))
 
 	// set the signature to a random value
@@ -134,7 +143,7 @@ func TestValidateDIDDocProofSecp256k1(t *testing.T) {
 
 	var ledgerDIDDoc DIDDoc
 	err := json.Unmarshal([]byte(secp256k1DIDDoc), &ledgerDIDDoc)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = ledgerDIDDoc.ValidateProof()
 	assert.NoError(t, err)
@@ -143,7 +152,7 @@ func TestValidateDIDDocProofSecp256k1(t *testing.T) {
 func TestValidateDIDUniqueness(t *testing.T) {
 	doc1, _ := GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 	doc2, _ := GenerateLedgerDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
-	provider := TestDIDDocProvider{map[string]*DIDDoc{doc2.ID: doc2}}
+	provider := TestDIDDocProvider{map[string]*DIDDoc{doc2.Metadata.ID: doc2}}
 
 	// no existing record
 	assert.NoError(t, doc1.ValidateUniqueness(context.Background(), provider.GetDIDDoc))
@@ -156,7 +165,7 @@ func TestValidateDIDUniqueness(t *testing.T) {
 	assert.NoError(t, util.DeepCopy(doc2, &copy))
 
 	// mutate the record
-	provider.Records[doc2.ID].DIDDoc.VerificationMethod = "did:work:0000000000000000"
+	provider.Records[doc2.Metadata.ID].DIDDoc.Proof.VerificationMethod = "did:work:0000000000000000"
 
 	// attempting to publish a doc that's different from an existing record
 	// simulates a DID collision.
@@ -167,8 +176,8 @@ type TestDIDDocProvider struct {
 	Records map[string]*DIDDoc
 }
 
-func (t TestDIDDocProvider) GetDIDDoc(_ context.Context, id string) (*DIDDoc, error) {
-	if record, ok := t.Records[id]; ok {
+func (t TestDIDDocProvider) GetDIDDoc(_ context.Context, id did.DID) (*DIDDoc, error) {
+	if record, ok := t.Records[id.String()]; ok {
 		return record, nil
 	}
 	return nil, fmt.Errorf("did<%s> not found", id)
@@ -187,12 +196,12 @@ var (
 	didDoc, privKey = GenerateLedgerDIDDoc(keyType, proof.JCSEdSignatureType)
 	keyRef          = didDoc.PublicKey[0].ID
 	signer, _       = proof.NewEd25519Signer(privKey, keyRef)
-	r, _            = GenerateLedgerRevocation(CredentialID, didDoc.ID, signer, proof.JCSEdSignatureType)
+	r, _            = GenerateLedgerRevocation(CredentialID, didDoc.DIDDoc.ID, signer, proof.JCSEdSignatureType)
 )
 
 func TestValidateRevocation(t *testing.T) {
 	provider := RevTestProvider{
-		DIDs:        map[string]*DIDDoc{didDoc.ID: didDoc},
+		DIDs:        map[string]*DIDDoc{didDoc.Metadata.ID: didDoc},
 		Revocations: map[string]*Revocation{r.UnsignedRevocation.ID: r},
 	}
 	ledgerProvider := BuildRevTestLedgerProvider(provider)
@@ -206,11 +215,11 @@ func TestValidateRevocations(t *testing.T) {
 	signer, err := proof.NewEd25519Signer(privKey2, keyRef2)
 	assert.NoError(t, err)
 
-	revocation2, err := GenerateLedgerRevocation(CredentialID2, didDoc2.ID, signer, proof.JCSEdSignatureType)
+	revocation2, err := GenerateLedgerRevocation(CredentialID2, didDoc2.DIDDoc.ID, signer, proof.JCSEdSignatureType)
 	assert.NoError(t, err)
 
 	provider := RevTestProvider{
-		DIDs:        map[string]*DIDDoc{didDoc.ID: didDoc, didDoc2.ID: didDoc2},
+		DIDs:        map[string]*DIDDoc{didDoc.Metadata.ID: didDoc, didDoc2.Metadata.ID: didDoc2},
 		Revocations: map[string]*Revocation{r.UnsignedRevocation.ID: r, revocation2.UnsignedRevocation.ID: revocation2},
 	}
 	ledgerProvider := BuildRevTestLedgerProvider(provider)
@@ -250,7 +259,7 @@ func Test_validateRevocationProof(t *testing.T) {
 	assert.NoError(t, util.DeepCopy(r, &newRevocation))
 
 	provider := RevTestProvider{
-		DIDs:        map[string]*DIDDoc{didDoc.ID: didDoc},
+		DIDs:        map[string]*DIDDoc{didDoc.Metadata.ID: didDoc},
 		Revocations: map[string]*Revocation{r.UnsignedRevocation.ID: r},
 	}
 	ledgerProvider := BuildRevTestLedgerProvider(provider)
@@ -264,7 +273,7 @@ func Test_validateRevocationProof(t *testing.T) {
 
 func Test_validateRevocationUniqueness(t *testing.T) {
 	provider := RevTestProvider{
-		DIDs:        map[string]*DIDDoc{didDoc.ID: didDoc},
+		DIDs:        map[string]*DIDDoc{didDoc.Metadata.ID: didDoc},
 		Revocations: map[string]*Revocation{r.UnsignedRevocation.ID: r},
 	}
 	ledgerProvider := BuildRevTestLedgerProvider(provider)
@@ -274,7 +283,7 @@ func Test_validateRevocationUniqueness(t *testing.T) {
 	// same revocation with different id
 	var copy Revocation
 	assert.NoError(t, util.DeepCopy(r, &copy))
-	provider.Revocations[r.UnsignedRevocation.ID].Author = "did:work:badbadbad"
+	provider.Revocations[r.UnsignedRevocation.ID].Author = did.DID("did:work:badbadbad")
 
 	// Collision on id
 	assert.Error(t, copy.ValidateUniqueness(ctx, ledgerProvider.RevocationProvider))
@@ -286,8 +295,8 @@ type RevTestProvider struct {
 }
 
 func BuildRevTestLedgerProvider(t RevTestProvider) Provider {
-	GetDIDDoc := func(ctx context.Context, id string) (*DIDDoc, error) {
-		if record, ok := t.DIDs[id]; ok {
+	GetDIDDoc := func(ctx context.Context, id did.DID) (*DIDDoc, error) {
+		if record, ok := t.DIDs[id.String()]; ok {
 			return record, nil
 		}
 		return nil, fmt.Errorf("did<%s> not found", id)
@@ -342,7 +351,7 @@ var (
 
 func TestValidateSchema(t *testing.T) {
 	provider := SchemaTestProvider{
-		DIDs:    map[string]*DIDDoc{didDoc.ID: didDoc},
+		DIDs:    map[string]*DIDDoc{didDoc.Metadata.ID: didDoc},
 		Schemas: map[string]*Schema{s.ID: s},
 	}
 	ledgerProvider := BuildSchemaTestLedgerProvider(provider)
@@ -378,7 +387,7 @@ func Test_validateSchemaMetadata(t *testing.T) {
 
 func Test_validateSchemaProof(t *testing.T) {
 	provider := SchemaTestProvider{
-		DIDs: map[string]*DIDDoc{didDoc.ID: didDoc},
+		DIDs: map[string]*DIDDoc{didDoc.Metadata.ID: didDoc},
 	}
 	ledgerProvider := BuildSchemaTestLedgerProvider(provider)
 
@@ -394,7 +403,7 @@ func Test_validateSchemaProof(t *testing.T) {
 
 func Test_validateSchemaUniqueness(t *testing.T) {
 	provider := SchemaTestProvider{
-		DIDs:    map[string]*DIDDoc{didDoc.ID: didDoc},
+		DIDs:    map[string]*DIDDoc{didDoc.Metadata.ID: didDoc},
 		Schemas: map[string]*Schema{s.ID: s},
 	}
 	ledgerProvider := BuildSchemaTestLedgerProvider(provider)
@@ -416,8 +425,8 @@ type SchemaTestProvider struct {
 }
 
 func BuildSchemaTestLedgerProvider(t SchemaTestProvider) Provider {
-	GetDIDDoc := func(ctx context.Context, id string) (*DIDDoc, error) {
-		if record, ok := t.DIDs[id]; ok {
+	GetDIDDoc := func(ctx context.Context, id did.DID) (*DIDDoc, error) {
+		if record, ok := t.DIDs[id.String()]; ok {
 			return record, nil
 		}
 		return nil, fmt.Errorf("did<%s> not found", id)
