@@ -10,15 +10,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 func TestDIDDocProof(t *testing.T) {
 	ed25519KeyType := proof.Ed25519KeyType
 	signatureType := proof.JCSEdSignatureType
-	doc, privateKey := did.GenerateDIDDoc(ed25519KeyType, signatureType)
+	doc, privateKey := did.GenerateWorkDIDDoc(ed25519KeyType, signatureType)
 	pubKey := privateKey.Public().(ed25519.PublicKey)
 	ledgerDoc := DIDDoc{
 		Metadata: &Metadata{

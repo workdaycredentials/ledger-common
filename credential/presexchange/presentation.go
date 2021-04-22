@@ -5,7 +5,7 @@ import (
 
 	"github.com/decentralized-identity/presentation-exchange-implementations/pkg/submission/verifiablepresentation"
 
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 // Alias to allow  us to extend the library's type

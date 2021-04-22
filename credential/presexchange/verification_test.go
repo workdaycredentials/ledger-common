@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.wday.io/credentials-open-source/ledger-common/credential"
-	"go.wday.io/credentials-open-source/ledger-common/ledger"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/ledger"
+	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 func TestVerifyVerifiablePresentation(t *testing.T) {

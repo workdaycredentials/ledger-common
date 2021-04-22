@@ -6,15 +6,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 func TestDIDDoc_create(t *testing.T) {
 	// First, choose a key type. We pick the standard Ed25519KeyType type.
 	// Next, pass it to our generate method which will return the complete, signed document, along
 	// with the associated private key that should be stored safely.
-	didDoc, privKey := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+	didDoc, privKey := did.GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 
 	assert.NotEmpty(t, didDoc)
 	assert.NotEmpty(t, privKey)
@@ -27,7 +27,7 @@ func TestDIDDoc_sign_verify(t *testing.T) {
 	// First, choose a key type. We pick the standard Ed25519KeyType type.
 	// Next, pass it to our generate method which will return the complete, signed document, along
 	// with the associated private key that should be stored safely.
-	didDoc, privKey := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+	didDoc, privKey := did.GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 
 	// We can use the private key to sign a sample piece of data
 	testData := &proof.GenericProvable{
@@ -61,7 +61,7 @@ func TestDIDDoc_deactivate(t *testing.T) {
 	// First, choose a signing type. We pick the standard Ed25519KeyType type.
 	// Next, pass it to our generate method which will return the complete, signed document, along
 	// with the associated private key that should be stored safely.
-	didDoc, privKey := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+	didDoc, privKey := did.GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 
 	// Make sure there are keys visible in the document
 	assert.NotEmpty(t, didDoc.PublicKey)

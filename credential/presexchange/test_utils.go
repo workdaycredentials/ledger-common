@@ -10,11 +10,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	"go.wday.io/credentials-open-source/ledger-common/credential"
-	"go.wday.io/credentials-open-source/ledger-common/ledger"
-	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/email"
-	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/name"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/ledger"
+	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/email"
+	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/name"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 const (

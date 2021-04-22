@@ -6,9 +6,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ed25519"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 func GenerateLedgerDIDDoc(keyType proof.KeyType, signatureType proof.SignatureType) (*DIDDoc, ed25519.PrivateKey) {

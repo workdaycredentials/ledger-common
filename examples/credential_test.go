@@ -8,12 +8,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	"go.wday.io/credentials-open-source/ledger-common/credential"
-	"go.wday.io/credentials-open-source/ledger-common/credential/schema"
-	"go.wday.io/credentials-open-source/ledger-common/ledger"
-	schemaValidation "go.wday.io/credentials-open-source/ledger-common/ledger/schema"
-	"go.wday.io/credentials-open-source/ledger-common/ledger/schema/schemas/name"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/credential/schema"
+	"github.com/workdaycredentials/ledger-common/ledger"
+	schemaValidation "github.com/workdaycredentials/ledger-common/ledger/schema"
+	"github.com/workdaycredentials/ledger-common/ledger/schema/schemas/name"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 func TestCredential(t *testing.T) {

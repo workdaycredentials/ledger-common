@@ -2,8 +2,6 @@ package did
 
 import (
 	"encoding/base64"
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -12,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ed25519"
 
-	"go.wday.io/credentials-open-source/ledger-common/proof"
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 var (
@@ -27,7 +25,7 @@ func TestGenerateDIDDocWithAndWithoutContext(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Run("Verify with context", func(t *testing.T) {
-		contextDoc, _ := GenerateDIDDocWithContext(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+		contextDoc, _ := GenerateWorkDIDDocWithContext(proof.Ed25519KeyType, proof.JCSEdSignatureType, []string{SchemaContext})
 		assert.Equal(t, StringOrArray{SchemaContext}, contextDoc.SchemaContext)
 		pk, err := base58.Decode(contextDoc.PublicKey[0].PublicKeyBase58)
 		assert.NoError(t, err)
@@ -37,7 +35,7 @@ func TestGenerateDIDDocWithAndWithoutContext(t *testing.T) {
 	})
 
 	t.Run("Verify without context", func(t *testing.T) {
-		withoutContextDoc, _ := GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+		withoutContextDoc, _ := GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 		assert.Empty(t, withoutContextDoc.SchemaContext)
 		pk, err := base58.Decode(withoutContextDoc.PublicKey[0].PublicKeyBase58)
 		assert.NoError(t, err)
@@ -93,7 +91,7 @@ func TestSignatureSuites(t *testing.T) {
 	}
 	for _, signatureType := range tests {
 		t.Run(string(signatureType), func(t *testing.T) {
-			doc, key := GenerateDIDDocWithContext(proof.Ed25519KeyType, signatureType)
+			doc, key := GenerateWorkDIDDocWithContext(proof.Ed25519KeyType, signatureType, []string{SchemaContext})
 			assert.Equal(t, signatureType, doc.Proof.Type)
 			suite, err := proof.SignatureSuites().GetSuiteForProof(doc.GetProof())
 			assert.NoError(t, err)
@@ -104,68 +102,9 @@ func TestSignatureSuites(t *testing.T) {
 	}
 }
 
-func TestDIDKey(t *testing.T) {
-	t.Run("end to end", func(t *testing.T) {
-		did := GenerateDIDKey(issuerPubKey)
-		extractedKey, err := ExtractEdPublicKeyFromDID(did)
-		require.NoError(t, err)
-		assert.Equal(t, extractedKey, issuerPubKey)
-	})
-
-	t.Run("GenerateDIDKey()", func(t *testing.T) {
-		did := GenerateDIDKey(issuerPubKey)
-		expectedDIDKeyLen := 55
-		assert.True(t, strings.HasPrefix(string(did), "did:key:z"))
-		assert.Len(t, did, expectedDIDKeyLen)
-	})
-
-	t.Run("GenerateDIDKeyFromB64PubKey()", func(t *testing.T) {
-		key := base64.StdEncoding.EncodeToString(issuerPubKey)
-		didKeyFromB64, err := GenerateDIDKeyFromB64PubKey(key)
-		require.NoError(t, err)
-
-		didKey := GenerateDIDKey(issuerPubKey)
-		assert.Equal(t, didKey, didKeyFromB64)
-	})
-}
-
-func TestExtractEdPublicKeyFromDID(t *testing.T) {
-	t.Run("Wrong DID Method", func(t *testing.T) {
-		did := DID("did:work:12345678")
-		_, err := ExtractEdPublicKeyFromDID(did)
-		assert.Error(t, err)
-		expectedErr := fmt.Errorf("DID<%s> format not supported", did)
-		assert.Equal(t, expectedErr, err)
-	})
-
-	t.Run("Improper Multiformat", func(t *testing.T) {
-		did := DID("did:key:x12345678")
-		_, err := ExtractEdPublicKeyFromDID(did)
-		assert.Error(t, err)
-		expectedErr := fmt.Errorf("DID<%s> format not supported", did)
-		assert.Equal(t, expectedErr, err)
-	})
-
-	t.Run("Can't Extract Key", func(t *testing.T) {
-		did := DID("did:key:z12345678")
-		_, err := ExtractEdPublicKeyFromDID(did)
-		assert.Error(t, err)
-		expectedErr := fmt.Errorf("key cannot be extracted from DID<%s>", did)
-		assert.Equal(t, expectedErr, err)
-	})
-
-	t.Run("Happy Path", func(t *testing.T) {
-		actualPK := issuerPubKey
-		did := DID("did:key:z2DTcg9rqdBTZ2qK1eCy1zQ3c6GzHdZYugdnTKE4NrK8Acd")
-		expectedPK, err := ExtractEdPublicKeyFromDID(did)
-		require.NoError(t, err)
-		assert.Equal(t, expectedPK, actualPK)
-	})
-}
-
 func TestDeactivateDIDDoc(t *testing.T) {
 	t.Run("Using existing DID Doc", func(t *testing.T) {
-		doc, privateKey := GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+		doc, privateKey := GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 		assert.NotEmpty(t, doc.PublicKey)
 
 		// deactivate and make sure it has no more pub keys
@@ -183,7 +122,7 @@ func TestDeactivateDIDDoc(t *testing.T) {
 	})
 
 	t.Run("Using generic method", func(t *testing.T) {
-		doc, privateKey := GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+		doc, privateKey := GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 		assert.NotEmpty(t, doc.PublicKey)
 
 		signer, err := proof.NewEd25519Signer(privateKey, doc.PublicKey[0].ID)
@@ -251,7 +190,7 @@ func TestVerifySecp256k1DIDDoc(t *testing.T) {
 }
 
 func TestAddKeyToDIDDoc(t *testing.T) {
-	doc, privKey := GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+	doc, privKey := GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 	assert.NotEmpty(t, doc)
 	assert.NotEmpty(t, privKey)
 	assert.Equal(t, 1, len(doc.PublicKey))

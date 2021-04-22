@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/go-playground/validator.v9"
 
-	"go.wday.io/credentials-open-source/ledger-common/ledger"
+	"github.com/workdaycredentials/ledger-common/ledger"
 )
 
 // This schema builder supports simple draft 7 JSON Schemas

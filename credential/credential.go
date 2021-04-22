@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 // VerifyClaim verifies the digital signature of the Claim Proof associated with the given attribute

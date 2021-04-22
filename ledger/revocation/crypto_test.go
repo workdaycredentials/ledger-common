@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/ledger"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/ledger"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 const (
@@ -18,7 +18,7 @@ const (
 // the result.
 func TestBlindRevocation(t *testing.T) {
 	// Create an issuer
-	didDoc, privKey := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+	didDoc, privKey := did.GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 	keyRef := didDoc.PublicKey[0].ID
 
 	// Create the unblinded revocation
@@ -46,7 +46,7 @@ var (
 )
 
 func BenchmarkBlindRevocation(b *testing.B) {
-	issuer, key := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+	issuer, key := did.GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 	keyRef := issuer.PublicKey[0].ID
 
 	signer, err := proof.NewEd25519Signer(key, keyRef)
@@ -63,7 +63,7 @@ func BenchmarkBlindRevocation(b *testing.B) {
 }
 
 func BenchmarkUnblindRevocation(b *testing.B) {
-	issuer, key := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+	issuer, key := did.GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 	keyRef := issuer.PublicKey[0].ID
 
 	signer, err := proof.NewEd25519Signer(key, keyRef)

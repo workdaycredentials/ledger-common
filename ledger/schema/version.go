@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/ledger"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/ledger"
 )
 
 const (

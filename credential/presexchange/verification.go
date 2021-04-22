@@ -12,9 +12,9 @@ import (
 	errs "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"go.wday.io/credentials-open-source/ledger-common/credential"
-	"go.wday.io/credentials-open-source/ledger-common/ledger/schema"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/ledger/schema"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 func VerifyVerifiablePresentation(verifier proof.Verifier, def definition.PresentationDefinition, vp VerifiablePresentation) error {

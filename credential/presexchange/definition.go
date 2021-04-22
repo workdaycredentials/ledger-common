@@ -3,7 +3,7 @@ package presexchange
 import (
 	"github.com/decentralized-identity/presentation-exchange-implementations/pkg/definition"
 
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 // PresentationRequest: an instance of a presentation definition, looking to be formalized in

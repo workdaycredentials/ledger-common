@@ -10,9 +10,9 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/sirupsen/logrus"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 // DID //
@@ -69,7 +69,7 @@ func (d DIDDoc) ValidateDeactivated() error {
 		return err
 	}
 
-	if len(d.DIDDoc.PublicKey) > 0 {
+	if len(d.DIDDoc.GetVerificationMethod()) > 0 {
 		return fmt.Errorf("deactivated DID Doc cannot contain public keys")
 	}
 
@@ -270,7 +270,7 @@ func (r Revocation) ValidateUniqueness(ctx context.Context, provider RevocationP
 // Schema //
 
 const (
-	idRxStr = `^(did:work:\S+)\;id=(\S+);version=(\d+\.\d+)$`
+	idRxStr = `^(did:(?:work|ion):\S+)\;id=(\S+);version=(\d+\.\d+)$`
 )
 
 var IDRx = regexp.MustCompile(idRxStr)

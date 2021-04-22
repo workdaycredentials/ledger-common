@@ -6,12 +6,12 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"go.wday.io/credentials-open-source/ledger-common/credential"
-	"go.wday.io/credentials-open-source/ledger-common/credential/presentation"
-	"go.wday.io/credentials-open-source/ledger-common/credential/presentation/response"
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/ledger"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/credential/presentation"
+	"github.com/workdaycredentials/ledger-common/credential/presentation/response"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/ledger"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 // ProofRequestHolder holds both the challenge issued by the Verifier and the set of
@@ -93,7 +93,7 @@ func (p *ProofRequestHolder) CheckVerifierSignature(verifierDIDDoc ledger.DIDDoc
 	}
 
 	// get pub key first
-	publicKey, err := getPublicKeyUsedForSigning(verifierDIDDoc.PublicKey, proofReq.Proof.GetVerificationMethod())
+	publicKey, err := getPublicKeyUsedForSigning(verifierDIDDoc.GetVerificationMethod(), proofReq.Proof.GetVerificationMethod())
 	if err != nil {
 		return err
 	}

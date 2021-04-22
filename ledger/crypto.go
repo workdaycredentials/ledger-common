@@ -8,8 +8,8 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/sirupsen/logrus"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 type (

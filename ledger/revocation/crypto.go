@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
-	"go.wday.io/credentials-open-source/ledger-common/ledger"
-	"go.wday.io/credentials-open-source/ledger-common/util/canonical"
+	"github.com/workdaycredentials/ledger-common/ledger"
+	"github.com/workdaycredentials/ledger-common/util/canonical"
 )
 
 const (

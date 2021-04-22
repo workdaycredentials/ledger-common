@@ -12,8 +12,8 @@ import (
 	"golang.org/x/crypto/ed25519"
 	"gopkg.in/go-playground/validator.v9"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 func TestCredentialBuilder_BuildCredential(t *testing.T) {

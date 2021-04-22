@@ -8,12 +8,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.wday.io/credentials-open-source/ledger-common/credential"
-	"go.wday.io/credentials-open-source/ledger-common/credential/presentation"
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/ledger"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/credential/presentation"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/ledger"
+	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 var (
@@ -333,7 +333,7 @@ func Test_isV1Credential(t *testing.T) {
 func Test_CheckVerifierSignature(t *testing.T) {
 	// Create a Verifier DIDDoc
 	signatureType := proof.JCSEdSignatureType
-	verifierDIDDoc, privKey := did.GenerateDIDDoc(proof.Ed25519KeyType, signatureType)
+	verifierDIDDoc, privKey := did.GenerateWorkDIDDoc(proof.Ed25519KeyType, signatureType)
 	ledgerDIDDoc := &ledger.DIDDoc{
 		Metadata: &ledger.Metadata{
 			ID: verifierDIDDoc.ID.String(),

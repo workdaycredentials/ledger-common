@@ -9,8 +9,8 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 func TestCreateExchangeMessages(t *testing.T) {
@@ -50,8 +50,8 @@ func TestCreateExchangeMessages(t *testing.T) {
 
 func TestEndToEndExchange(t *testing.T) {
 	// Create Inviter and Invitee DID Docs
-	inviterDoc, inviterPrivKey := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
-	inviteeDoc, inviteePrivKey := did.GenerateDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+	inviterDoc, inviterPrivKey := did.GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
+	inviteeDoc, inviteePrivKey := did.GenerateWorkDIDDoc(proof.Ed25519KeyType, proof.JCSEdSignatureType)
 
 	// 1. Create invitation (inviter)
 	kidForInvitee := fmt.Sprintf("%s#key-%s", inviterDoc.ID, uuid.New().String())

@@ -1,4 +1,4 @@
-module go.wday.io/credentials-open-source/ledger-common
+module github.com/workdaycredentials/ledger-common
 
 go 1.13
 
@@ -18,6 +18,6 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.6.1
 	github.com/xeipuuv/gojsonschema v1.2.0
-	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	gopkg.in/go-playground/validator.v9 v9.31.0
 )

@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"go.wday.io/credentials-open-source/ledger-common/credential"
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 var unsignedAddressV1Cred = credential.VerifiableCredential{
@@ -164,9 +165,9 @@ func TestConditionOperation_Eval(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var conditionOperation condition
 			var values map[string]interface{}
-			assert.NoError(t, json.Unmarshal([]byte(tt.condition), &conditionOperation))
+			require.NoError(t, json.Unmarshal([]byte(tt.condition), &conditionOperation))
 			if tt.values != "" {
-				assert.NoError(t, json.Unmarshal([]byte(tt.values), &values))
+				require.NoError(t, json.Unmarshal([]byte(tt.values), &values))
 			}
 			result, err := conditionOperation.Eval(Scope{
 				Credential:     unsignedAddressV1Cred,
@@ -179,7 +180,7 @@ func TestConditionOperation_Eval(t *testing.T) {
 				}
 			} else {
 				assert.Equal(t, tt.want, result)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -294,9 +295,9 @@ func TestEvalConditions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var conditions []Condition
 			var values map[string]interface{}
-			assert.NoError(t, json.Unmarshal([]byte(tt.conditions), &conditions))
+			require.NoError(t, json.Unmarshal([]byte(tt.conditions), &conditions))
 			if tt.values != "" {
-				assert.NoError(t, json.Unmarshal([]byte(tt.values), &values))
+				require.NoError(t, json.Unmarshal([]byte(tt.values), &values))
 			}
 			result, err := EvalConditions(Scope{
 				Credential:     unsignedAddressV1Cred,
@@ -309,7 +310,7 @@ func TestEvalConditions(t *testing.T) {
 				}
 			} else {
 				assert.Equal(t, tt.want, result)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -441,9 +442,9 @@ func TestTimeSpecificConditions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var conditions []Condition
 			var values map[string]interface{}
-			assert.NoError(t, json.Unmarshal([]byte(tt.conditions), &conditions))
+			require.NoError(t, json.Unmarshal([]byte(tt.conditions), &conditions))
 			if tt.values != "" {
-				assert.NoError(t, json.Unmarshal([]byte(tt.values), &values))
+				require.NoError(t, json.Unmarshal([]byte(tt.values), &values))
 			}
 			result, err := EvalConditions(Scope{
 				Credential:     unsignedAddressV1Cred,
@@ -456,7 +457,7 @@ func TestTimeSpecificConditions(t *testing.T) {
 				}
 			} else {
 				assert.Equal(t, tt.want, result)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -521,9 +522,9 @@ func TestNumberSpecificConditions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var conditions []Condition
 			var values map[string]interface{}
-			assert.NoError(t, json.Unmarshal([]byte(tt.conditions), &conditions))
+			require.NoError(t, json.Unmarshal([]byte(tt.conditions), &conditions))
 			if tt.values != "" {
-				assert.NoError(t, json.Unmarshal([]byte(tt.values), &values))
+				require.NoError(t, json.Unmarshal([]byte(tt.values), &values))
 			}
 			result, err := EvalConditions(Scope{
 				Credential:     unsignedAddressV1Cred,
@@ -536,7 +537,7 @@ func TestNumberSpecificConditions(t *testing.T) {
 				}
 			} else {
 				assert.Equal(t, tt.want, result)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

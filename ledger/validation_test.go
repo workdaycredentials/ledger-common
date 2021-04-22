@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"golang.org/x/crypto/ed25519"
@@ -12,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 // DID //
@@ -366,10 +367,14 @@ func TestValidateSchemaStatic(t *testing.T) {
 func Test_validateSchemaID(t *testing.T) {
 	assert.NoError(t, ValidateSchemaID(s.ID))
 
-	// copy + make it bad
+	// copy + make it ion
 	var copy Schema
 	assert.NoError(t, util.DeepCopy(s, &copy))
 
+	copy.ID = strings.Replace(s.ID, "did:work", "did:ion:test", 1)
+	assert.NoError(t, ValidateSchemaID(copy.ID))
+
+	// make it bad
 	copy.ID = "badbadrealbad"
 	assert.Error(t, ValidateSchemaID(copy.ID))
 }

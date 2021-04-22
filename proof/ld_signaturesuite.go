@@ -13,7 +13,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/piprate/json-gold/ld"
 
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 const (

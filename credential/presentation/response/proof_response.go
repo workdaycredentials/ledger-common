@@ -4,10 +4,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
-	"go.wday.io/credentials-open-source/ledger-common/credential"
-	"go.wday.io/credentials-open-source/ledger-common/credential/presentation"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/credential/presentation"
+	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 func GenerateCompositeProofResponse(proofRequest presentation.CompositeProofRequestInstanceChallenge, fulfilledCriteria []presentation.FulfilledCriterion, signer proof.Signer) (*presentation.CompositeProofResponseSubmission, error) {

@@ -1,14 +1,13 @@
 package did
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 
 	"github.com/mr-tron/base58"
 
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 // DID is a Decentralized Identifier conforming to https://www.w3.org/TR/did-core/#did-syntax
@@ -54,7 +53,7 @@ func (d *DIDDoc) GetVerificationMethod() []KeyDef {
 }
 
 func (d *DIDDoc) GetPublicKey(keyID string) *KeyDef {
-	for _, pubKey := range d.PublicKey {
+	for _, pubKey := range d.GetVerificationMethod() {
 		if pubKey.ID == keyID {
 			return &pubKey
 		}
@@ -88,7 +87,7 @@ type JWK struct {
 type KeyDef struct {
 	ID              URI           `json:"id"`
 	Type            proof.KeyType `json:"type"`
-	Controller      DID           `json:"controller,omitempty"` // TODO: required
+	Controller      DID           `json:"controller"`
 	PublicKeyBase58 string        `json:"publicKeyBase58,omitempty"`
 	PublicKeyJwk    *JWK          `json:"publicKeyJwk,omitempty"`
 	// TODO: verification method MAY include additional properties. NEXT-11525
@@ -103,8 +102,7 @@ func (k *KeyDef) IsEmpty() bool {
 
 func (k *KeyDef) GetDecodedPublicKey() ([]byte, error) {
 	if k.PublicKeyJwk != nil {
-		// TODO: handle PublicKeyJwk
-		return nil, errors.New("Not implemented: publicKeyJwk")
+		return decodedJWK(*k.PublicKeyJwk)
 	}
 	return base58.Decode(k.PublicKeyBase58)
 }

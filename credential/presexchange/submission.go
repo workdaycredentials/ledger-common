@@ -13,10 +13,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"go.wday.io/credentials-open-source/ledger-common/credential"
-	"go.wday.io/credentials-open-source/ledger-common/ledger/schema"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
-	utils "go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/ledger/schema"
+	"github.com/workdaycredentials/ledger-common/proof"
+	utils "github.com/workdaycredentials/ledger-common/util"
 
 	"github.com/PaesslerAG/jsonpath"
 )

@@ -6,11 +6,11 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	didpkg "go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
-	"go.wday.io/credentials-open-source/ledger-common/util"
-	"go.wday.io/credentials-open-source/ledger-common/util/canonical"
+	"github.com/workdaycredentials/ledger-common/did"
+	didpkg "github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/util/canonical"
 )
 
 // GenerateB64EncodedEd25519DeactivatedDIDDoc creates a deactivated DID Document and returns it as

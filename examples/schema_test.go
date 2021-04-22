@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.wday.io/credentials-open-source/ledger-common/ledger"
-	. "go.wday.io/credentials-open-source/ledger-common/ledger/schema"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/ledger"
+	. "github.com/workdaycredentials/ledger-common/ledger/schema"
+	"github.com/workdaycredentials/ledger-common/proof"
 )
 
 func TestSchema_create(t *testing.T) {

@@ -3,7 +3,7 @@ package conditions
 import (
 	"github.com/pkg/errors"
 
-	"go.wday.io/credentials-open-source/ledger-common/credential"
+	"github.com/workdaycredentials/ledger-common/credential"
 )
 
 type Evaler interface {

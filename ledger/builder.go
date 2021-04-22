@@ -11,9 +11,9 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/sirupsen/logrus"
 
-	"go.wday.io/credentials-open-source/ledger-common/did"
-	"go.wday.io/credentials-open-source/ledger-common/proof"
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/did"
+	"github.com/workdaycredentials/ledger-common/proof"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 type GenerateDIDDocInput struct {
@@ -64,7 +64,7 @@ func (g GenerateDIDDocInput) GenerateLedgerDIDDoc() (*DIDDoc, error) {
 
 	doc := did.DIDDoc{
 		ID:        g.DID,
-		PublicKey: didPubKeys,
+		PublicKey: didPubKeys, // TODO: use VerificationMethod
 		Service:   g.Services,
 	}
 

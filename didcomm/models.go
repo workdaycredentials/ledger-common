@@ -1,6 +1,6 @@
 package didcomm
 
-import "go.wday.io/credentials-open-source/ledger-common/did"
+import "github.com/workdaycredentials/ledger-common/did"
 
 // Implementation based on https://github.com/hyperledger/aries-rfcs/tree/master/features/0023-did-exchange
 

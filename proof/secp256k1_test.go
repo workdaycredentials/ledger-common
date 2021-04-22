@@ -7,7 +7,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/require"
 
-	"go.wday.io/credentials-open-source/ledger-common/util"
+	"github.com/workdaycredentials/ledger-common/util"
 )
 
 const (
