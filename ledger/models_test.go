@@ -230,6 +230,20 @@ func TestLedgerSchema(t *testing.T) {
 	assert.Equal(t, expectedSchema.Schema.ToJSON(), schema.JSONSchema.Schema.ToJSON())
 }
 
+func TestGenerateSchemaID(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
+		id := GenerateSchemaID("did:work:6sYe1y3zXhmyrBkgHgAgaq", "1.0")
+		assert.Contains(t, id, "did:work:6sYe1y3zXhmyrBkgHgAgaq;id=")
+		assert.Contains(t, id, "version=1.0")
+	})
+
+	t.Run("generate schema id with LFD", func(t *testing.T) {
+		id := GenerateSchemaID("did:ion:asdfghjklqwerty:zxcvbnmuiop", "1.0")
+		assert.Contains(t, id, "did:ion:asdfghjklqwerty;id=")
+		assert.Contains(t, id, "version=1.0")
+	})
+}
+
 // tests where the given regular expression accurately validates the id property
 func TestLedgerSchemaMetadataIDValidation(t *testing.T) {
 	valid := Schema{

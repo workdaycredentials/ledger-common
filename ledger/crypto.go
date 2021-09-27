@@ -49,7 +49,7 @@ func GetKeyDef(ctx context.Context, did did.DID, keyID string, provider DIDDocPr
 // revocation status in the ledger. This is intended to prevent data mining on the revocations
 // store in an attempt to learn anything about the issuer.
 func GenerateRevocationKey(issuerDID did.DID, credentialID string) string {
-	sha := sha256.Sum256([]byte(string(issuerDID) + credentialID))
+	sha := sha256.Sum256([]byte(issuerDID.ToShortFormDid().String() + credentialID))
 	return base58.Encode(sha[:])
 }
 

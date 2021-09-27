@@ -60,6 +60,15 @@ func TestIsValidHash(t *testing.T) {
 	}
 }
 
+func TestIsValidNonce(t *testing.T) {
+	const largestAllowedHash = "04fedd721038ab8f64139ee48868a5c3ba7f36386762dfed7d203717f13d69dc"
+	const challenge = "8f347148776672b9bf2514bb221c2fe7d0dc485e30b4a5fb543a104e5b0ba6a2"
+	const nonce = "6f"
+	const body = `{"type":"create","delta":{"patches":[{"action":"replace","document":{"publicKeys":[{"id":"key-1","publicKeyJwk":{"kty":"OKP","crv":"Ed25519","x":"0xyiJvOQF8fLHDbqclgMCPC4g3o24z_E6mtJOxXp_B0"},"purposes":["authentication"],"type":"JsonWebKey2020"}],"services":[{"id":"schema-1","type":"schema","serviceEndpoint":"did:work:VS1wWC93J7TSwoKBCFYE9r;id=af4821e7-eb08-4e48-8552-04c06a4cc9cc;version=3.0"}]}}],"updateCommitment":"EiDmE3VrgNnH9ZLZdMF6qcsEaC8bEiKgK18kNAoP-Z9X1g"},"suffixData":{"deltaHash":"EiBvqFKWRb938tMFQs0N5aiqHUe8WJ-Se0PyCHTXyOrR2g","recoveryCommitment":"EiBdyLhRueAuL7U5xJuG_58sVVnrTeSYikf0uPaPi8ePxQ"}}`
+	pow := powChallenge{[]byte(body), fromHex(challenge), fromHex(largestAllowedHash)}
+	assert.True(t, pow.isValidNonce(fromHex(nonce)))
+}
+
 func TestProofOfWork(t *testing.T) {
 	ctx := context.Background()
 	pow := powChallenge{[]byte(testBody), fromHex(testChallenge), fromHex(testHash)}

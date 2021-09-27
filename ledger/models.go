@@ -205,7 +205,7 @@ func (j JSONSchemaMap) ToJSON() string {
 }
 
 func GenerateSchemaID(author did.DID, version string) string {
-	return fmt.Sprintf("%s;id=%s;version=%s", author, uuid.New().String(), version)
+	return fmt.Sprintf("%s;id=%s;version=%s", author.ToShortFormDid(), uuid.New().String(), version)
 }
 
 // Object for a credential that has not been signed

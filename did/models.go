@@ -20,7 +20,27 @@ func (did DID) String() string {
 
 // HashCode returns the DID as a string suitable for hashing
 func (did DID) HashCode() string {
-	return string(did)
+	return string(did.ToShortFormDid())
+}
+
+// ToShortFormDid returns the short-form version of the DID
+func (did DID) ToShortFormDid() DID {
+	fragments := strings.Split(string(did), ":")
+	if len(fragments) < 3 {
+		// TODO Validate DID values, rather than passing garbage?
+		return did
+	}
+	method, identifier := fragments[1], fragments[2]
+	// allow-list - checking for long-form currently only applicable to "ion" method
+	if method == "ion" {
+		stop := 3
+		if identifier == "test" {
+			stop = 4
+		}
+		return DID(strings.Join(fragments[:stop], ":"))
+	}
+	// If not an ION DID, must be a WORK DID, therefore long-form does not exist
+	return did
 }
 
 // URI is a string conforming to https://tools.ietf.org/html/rfc3986
