@@ -5,13 +5,8 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
-	"os/exec"
-	"os/user"
-	"path/filepath"
 	"regexp"
-	"strings"
 	"syscall"
 
 	"github.com/magefile/mage/mg"
@@ -25,13 +20,12 @@ import (
 
 const (
 	Go = "go"
-	ModMode = "-mod=vendor"
 )
 
 // Build builds the library.
 func Build() error {
 	fmt.Println("Building...")
-	return sh.Run(Go, "build", ModMode, "./...")
+	return sh.Run(Go, "build", "./...")
 }
 
 // Clean deletes any build artifacts.
@@ -51,7 +45,7 @@ func runTests(extraTestArgs ...string) error {
 	if mg.Verbose() {
 		args = append(args, "-v")
 	}
-	args = append(args, ModMode, "-race", "-tags", "unit")
+	args = append(args, "-race", "-tags", "unit")
 	args = append(args, extraTestArgs...)
 	args = append(args, "./...")
 	testEnv := map[string]string{
@@ -99,80 +93,10 @@ func (w *regexpWriter) Write(p []byte) (int, error) {
 // remove any dependency on the Packr tool in consumers of this library.  This is intended to be called by developers,
 // not the build tool.
 func Packr() error {
-	mg.Deps(ensureGobin)
-	return gobinRun("github.com/gobuffalo/packr/packr")
+	return sh.Run(Go, "run", "github.com/gobuffalo/packr/packr")
 }
 
 // PackrClean deletes all the packr generated go files.
 func PackrClean() error {
-	mg.Deps(ensureGobin)
-	return gobinRun("github.com/gobuffalo/packr/packr", "clean")
-}
-
-func ensureGobin() error {
-	return installIfNotPresent("gobin", "github.com/myitcv/gobin")
-}
-
-func gobinRun(cmd string, args ...string) error {
-	return sh.Run(findOnPathOrGoPath("gobin"), append([]string{"-m", "-run", cmd},
-		args...)...)
-}
-
-// InstallIfNotPresent installs a go based tool (if not already installed)
-func installIfNotPresent(execName, goPackage string) error {
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-	pathOfExec := findOnPathOrGoPath(execName)
-	if len(pathOfExec) == 0 {
-		cmd := exec.Command(Go, "get", "-u", goPackage)
-		cmd.Dir = usr.HomeDir
-		if err := cmd.Start(); err != nil {
-			return err
-		}
-		return cmd.Wait()
-	}
-	return nil
-}
-
-func findOnPathOrGoPath(execName string) string {
-	if p := findOnPath(execName); p != "" {
-		return p
-	}
-	p := filepath.Join(goPath(), "bin", execName)
-	if _, err := os.Stat(p); err == nil {
-		return p
-	}
-	fmt.Printf("Could not find %s on PATH or in GOPATH/bin\n", execName)
-	return ""
-}
-
-func findOnPath(execName string) string {
-	pathEnv := os.Getenv("PATH")
-	pathDirectories := strings.Split(pathEnv, string(os.PathListSeparator))
-	for _, pathDirectory := range pathDirectories {
-		possible := filepath.Join(pathDirectory, execName)
-		stat, err := os.Stat(possible)
-		if err == nil || os.IsExist(err) {
-			if (stat.Mode() & 0111) != 0 {
-				return possible
-			}
-		}
-	}
-	return ""
-}
-
-func goPath() string {
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-		return ""
-	}
-	goPath, goPathSet := os.LookupEnv("GOPATH")
-	if !goPathSet {
-		goPath = filepath.Join(usr.HomeDir, Go)
-	}
-	return goPath
+	return sh.Run(Go, "run", "github.com/gobuffalo/packr/packr", "clean")
 }

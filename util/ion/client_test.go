@@ -82,7 +82,7 @@ func TestFailedChallenge(t *testing.T) {
 }
 
 func TestFailedCreate(t *testing.T) {
-	const errorJson = `{"code":"ion_error_code","message":"human readable"}`
+	const errorJson = `{"error":{"code":"ion_error_code","message":"human readable"}}`
 
 	transport := mockTransport{
 		func(req *http.Request) (*http.Response, error) {

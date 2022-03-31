@@ -19,13 +19,18 @@ const (
 )
 
 type ionApiErrorResponse struct {
-	Message   string `json:"message"`
-	Date      string `json:"date,omitempty"`
-	RequestID string `json:"requestId,omitempty"`
+	ErrorObj  ionApiErrorObj `json:"error,omitempty"`
+	Date      string         `json:"date,omitempty"`
+	RequestID string         `json:"requestId,omitempty"`
+}
+
+type ionApiErrorObj struct {
+	Message string `json:"message,omitempty"`
+	Code    string `json:"code,omitempty"`
 }
 
 func (e ionApiErrorResponse) Error() string {
-	return e.Message
+	return e.ErrorObj.Message
 }
 
 // IonClient allows posting ION DIDDoc operations to a public ION node

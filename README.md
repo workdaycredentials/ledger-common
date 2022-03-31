@@ -22,7 +22,7 @@ We invite anyone to raise issues or pull requests, but please note that this rep
 
 ## Requirements
 
-* Go 1.13+
+* Go 1.16+
 * Mage
 
 ### Mage
