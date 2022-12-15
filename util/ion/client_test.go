@@ -3,7 +3,6 @@ package ion
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -26,7 +25,7 @@ func (mock *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func readCloser(body string) io.ReadCloser {
-	return ioutil.NopCloser(strings.NewReader(body))
+	return io.NopCloser(strings.NewReader(body))
 }
 
 func TestHappy(t *testing.T) {

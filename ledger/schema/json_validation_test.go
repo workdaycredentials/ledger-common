@@ -33,7 +33,8 @@ import (
 
 // Mainly validates the builder generates valid credentials against the schema
 func TestCredentialSchema(t *testing.T) {
-	schemaString, err := schema.GetSchema(schema.VerifiableCredentialSchema)
+	schemaBytes, err := schema.GetVCSchema()
+	schemaString := string(schemaBytes)
 	assert.NoError(t, err)
 
 	testSchema := `{
@@ -1035,8 +1036,9 @@ func TestIsJSON(t *testing.T) {
 
 // Tests validation on ledger metadata for incorrectly formed metadata
 func TestLedgerMetadataValidation(t *testing.T) {
-	schemaString, err := schemas.GetJSONFile(schemas.LedgerMetadataSchema)
+	schemaBytes, err := schemas.GetJSONFile(schemas.LedgerMetadataSchema)
 	assert.NoError(t, err)
+	schemaString := string(schemaBytes)
 
 	testConfigs := []struct {
 		name          string

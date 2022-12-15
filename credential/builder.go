@@ -1,7 +1,7 @@
 package credential
 
 import (
-	"gopkg.in/go-playground/validator.v9"
+	"github.com/go-playground/validator/v10"
 
 	"github.com/workdaycredentials/ledger-common/did"
 	"github.com/workdaycredentials/ledger-common/proof"

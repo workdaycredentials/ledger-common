@@ -277,7 +277,8 @@ func gatherInputDescriptorsForRequirementRec(requirement definition.SubmissionRe
 }
 
 // Fulfill requirement has the precondition that the descriptors have been filtered properly to those that could
-//  be fulfilled for the given requirement
+//
+//	be fulfilled for the given requirement
 func (rf requestFulfiller) fulfillRequirement(requirement definition.SubmissionRequirement) ([]fulfilledCriterion, error) {
 	logrus.Debugf("fulfilling requirement: %+v", requirement)
 	// assume the max = # of descriptors

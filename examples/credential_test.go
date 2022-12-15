@@ -64,7 +64,7 @@ func TestCredential(t *testing.T) {
 	assert.NoError(t, err)
 
 	// For sanity, we can validate the credential against the schema that defines the shape of all credentials
-	credSchema, err := schema.GetSchema(schema.VerifiableCredentialSchema)
+	credSchema, err := schema.GetVCSchema()
 	assert.NoError(t, err)
 
 	assert.NoError(t, schemaValidation.Validate(credSchema, credJSON))

@@ -95,7 +95,7 @@ func ValidateSchemaUpdate(schemaUpdateInput *UpdateInput) (*UpdateResult, error)
 	}
 
 	if !schemaUpdateResult.MajorChange && !schemaUpdateResult.MinorChange {
-		message := fmt.Sprintf("Schema has not been updated")
+		message := "Schema has not been updated"
 		schemaUpdateResult.Message = message
 		schemaUpdateResult.Valid = false
 		return schemaUpdateResult, fmt.Errorf(message)
@@ -212,17 +212,17 @@ func schemaUpdateInputValidation(schemaUpdateInput *UpdateInput) (*UpdateResult,
 	}
 
 	if schemaUpdateInput == nil {
-		message := fmt.Sprintf("Input is not valid")
+		message := "Input is not valid"
 		schemaUpdateResult.Message = message
 		return schemaUpdateResult, fmt.Errorf(message)
 	}
 	if schemaUpdateInput.UpdatedSchema == nil || schemaUpdateInput.UpdatedSchema.Metadata == nil || schemaUpdateInput.UpdatedSchema.JSONSchema == nil {
-		message := fmt.Sprintf("Updated Schema is missing from input")
+		message := "Updated Schema is missing from input"
 		schemaUpdateResult.Message = message
 		return schemaUpdateResult, fmt.Errorf(message)
 	}
 	if schemaUpdateInput.PreviousSchema == nil || schemaUpdateInput.PreviousSchema.Metadata == nil || schemaUpdateInput.PreviousSchema.JSONSchema == nil {
-		message := fmt.Sprintf("Previous Schema is missing from input")
+		message := "Previous Schema is missing from input"
 		schemaUpdateResult.Message = message
 		return schemaUpdateResult, fmt.Errorf(message)
 	}
@@ -230,13 +230,13 @@ func schemaUpdateInputValidation(schemaUpdateInput *UpdateInput) (*UpdateResult,
 	updatedAuthor := schemaUpdateInput.UpdatedSchema.Author
 	previousAuthor := schemaUpdateInput.PreviousSchema.Author
 	if len(updatedAuthor) == 0 || updatedAuthor != previousAuthor {
-		message := fmt.Sprintf("Schema Author is invalid")
+		message := "Schema Author is invalid"
 		schemaUpdateResult.Message = message
 		return schemaUpdateResult, fmt.Errorf(message)
 	}
 
 	if len(schemaUpdateInput.UpdatedSchemaCategoryID) != 0 && schemaUpdateInput.UpdatedSchemaCategoryID != schemaUpdateInput.PreviousSchemaCategoryID {
-		message := fmt.Sprintf("Schema Category cannot be updated")
+		message := "Schema Category cannot be updated"
 		schemaUpdateResult.Message = message
 		return schemaUpdateResult, fmt.Errorf(message)
 	}

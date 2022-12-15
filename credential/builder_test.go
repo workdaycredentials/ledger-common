@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ed25519"
-	"gopkg.in/go-playground/validator.v9"
 
 	"github.com/workdaycredentials/ledger-common/did"
 	"github.com/workdaycredentials/ledger-common/proof"

@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"time"
 
-	"golang.org/x/crypto/ed25519"
-	"gopkg.in/go-playground/validator.v9"
-
+	"github.com/go-playground/validator/v10"
 	"github.com/mr-tron/base58"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ed25519"
 
 	"github.com/workdaycredentials/ledger-common/did"
 	"github.com/workdaycredentials/ledger-common/proof"

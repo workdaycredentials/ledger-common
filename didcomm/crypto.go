@@ -89,7 +89,7 @@ func VerifyAttachmentData(data Data, keyID string) error {
 	if err != nil {
 		return err
 	}
-	valid, err := verifier.Verify([]byte(data.JWS.Protected + "." + data.Base64), decodedSignature)
+	valid, err := verifier.Verify([]byte(data.JWS.Protected+"."+data.Base64), decodedSignature)
 	if err != nil {
 		return err
 	}

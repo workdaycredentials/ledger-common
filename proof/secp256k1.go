@@ -6,7 +6,8 @@ import (
 	"encoding/base64"
 
 	"github.com/aws/aws-sdk-go/service/kms"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/mr-tron/base58"
 
 	"github.com/workdaycredentials/ledger-common/util"
@@ -52,11 +53,11 @@ func (v *Secp256K1Verifier) Type() KeyType {
 }
 
 func (v *Secp256K1Verifier) Verify(data, signature []byte) (bool, error) {
-	ecdsaPubKey, err := btcec.ParsePubKey(v.PublicKey, btcec.S256())
+	ecdsaPubKey, err := btcec.ParsePubKey(v.PublicKey)
 	if err != nil {
 		return false, err
 	}
-	btcecSignature, err := btcec.ParseSignature(signature, btcec.S256())
+	btcecSignature, err := ecdsa.ParseSignature(signature)
 	if err != nil {
 		return false, err
 	}
@@ -92,11 +93,11 @@ func VerifySecp256k1Signature(publicKeyDerBase58, messageBase64, signatureBase58
 	}
 
 	// btcec lib
-	btcecSignature, err := btcec.ParseSignature(decoded, btcec.S256())
+	btcecSignature, err := ecdsa.ParseSignature(decoded)
 	if err != nil {
 		return false, err
 	}
-	ecdsaPubKey, err := btcec.ParsePubKey(pubKeyXY, btcec.S256())
+	ecdsaPubKey, err := btcec.ParsePubKey(pubKeyXY)
 	if err != nil {
 		return false, err
 	}

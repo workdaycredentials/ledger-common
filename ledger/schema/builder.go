@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/pkg/errors"
-	"gopkg.in/go-playground/validator.v9"
 
 	"github.com/workdaycredentials/ledger-common/ledger"
 )
@@ -175,7 +175,7 @@ func buildProperties(attrs []Attribute) (properties map[string]jsonAttr, require
 			}
 		case Object:
 			toAdd = jsonAttr{
-				Type:       attr.Type,
+				Type: attr.Type,
 				ObjectType: &ObjectType{
 					Properties:           attr.ObjectType.Properties,
 					RequiredProperties:   attr.ObjectType.RequiredProperties,

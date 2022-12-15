@@ -144,11 +144,12 @@ func ValidateLedgerSchemaV1(document interface{}) error {
 
 	// Do the validation
 	// Validate meta schema
-	schemaString, err := schemas.GetJSONFile(schemas.LedgerMetadataSchema)
+	schemaBytes, err := schemas.GetJSONFile(schemas.LedgerMetadataSchema)
 	if err != nil {
 		return err
 	}
-	schemaLoader := gojsonschema.NewStringLoader(schemaString)
+
+	schemaLoader := gojsonschema.NewStringLoader(string(schemaBytes))
 	metadataJSONBytes, err := json.Marshal(&documentTyped.Metadata)
 	if err != nil {
 		logrus.WithError(err).Error("Unable to marshal metadata for schema")

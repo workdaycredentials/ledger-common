@@ -1,19 +1,17 @@
 package schema
 
 import (
-	"fmt"
-
-	"github.com/gobuffalo/packr"
+	"embed"
+	"errors"
 )
 
-var box = packr.NewBox(".")
+//go:embed verifiable-credential-schema.json
+var f embed.FS
+var vcSchema, _ = f.ReadFile("verifiable-credential-schema.json")
 
-type Schema string
-
-const (
-	VerifiableCredentialSchema Schema = "verifiable-credential-schema"
-)
-
-func GetSchema(name Schema) (string, error) {
-	return box.FindString(fmt.Sprintf("%s.json", name))
+func GetVCSchema() (string, error) {
+	if len(vcSchema) == 0 {
+		return "", errors.New("cannot get vc schema")
+	}
+	return string(vcSchema), nil
 }

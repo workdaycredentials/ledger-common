@@ -1,4 +1,4 @@
-// +build mage
+//go:build mage
 
 package main
 
@@ -87,16 +87,4 @@ func (w *regexpWriter) Write(p []byte) (int, error) {
 		n = len(r)
 	}
 	return n, err
-}
-
-// Packr generates go files for static resources. Generated files should be committed into source control in order to
-// remove any dependency on the Packr tool in consumers of this library.  This is intended to be called by developers,
-// not the build tool.
-func Packr() error {
-	return sh.Run(Go, "run", "github.com/gobuffalo/packr/packr")
-}
-
-// PackrClean deletes all the packr generated go files.
-func PackrClean() error {
-	return sh.Run(Go, "run", "github.com/gobuffalo/packr/packr", "clean")
 }
